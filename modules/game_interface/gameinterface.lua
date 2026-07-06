@@ -1084,6 +1084,36 @@ function removeMenuHook(category, name)
   end
 end
 
+local function isNearDepotLocker()
+  local player = g_game.getLocalPlayer()
+  if not player then
+    return false
+  end
+  local pos = player:getPosition()
+  if not pos then
+    return false
+  end
+  for dx = -1, 1 do
+    for dy = -1, 1 do
+      local tile = g_map.getTile({x = pos.x + dx, y = pos.y + dy, z = pos.z})
+      if tile and type(tile.getThings) == 'function' then
+        local things = tile:getThings()
+        if type(things) == 'table' then
+          for _, thing in ipairs(things) do
+            if thing and type(thing.isItem) == 'function' and thing:isItem() then
+              local id = thing:getId()
+              if id >= 3497 and id <= 3500 then
+                return true
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  return false
+end
+
 function createThingMenu(tile, menuPosition, lookThing, useThing, creatureThing)
   if not g_game.isOnline() then return end
   local menu = g_ui.createWidget('PopupMenu')
@@ -1100,16 +1130,18 @@ function createThingMenu(tile, menuPosition, lookThing, useThing, creatureThing)
     menu:addOption(tr('Inspect'), function() g_game.sendInspectionNormalObject(lookThing:getPosition()) end)
     menu:addOption(tr('Cyclopedia'), function() modules.game_cyclopedia.CyclopediaItems.onRedirect(lookThing:getId()) end)
 
-    local hasProficiencyId = lookThing.getProficiencyId ~= nil
-    local proficiencyId = 0
-    if hasProficiencyId then
+    local hasProficiency = false
+    if modules.game_proficiency and type(modules.game_proficiency.isProficiencyWeapon) == 'function' then
+      hasProficiency = modules.game_proficiency.isProficiencyWeapon(lookThing:getId())
+    end
+    if not hasProficiency and lookThing.getProficiencyId ~= nil then
       local ok, id = pcall(function() return lookThing:getProficiencyId() end)
-      if ok then
-        proficiencyId = id
+      if ok and (tonumber(id) or 0) > 0 then
+        hasProficiency = true
       end
     end
 
-    if proficiencyId > 0 and modules.game_proficiency and type(modules.game_proficiency.isAvailable) == 'function' and modules.game_proficiency.isAvailable() then
+    if hasProficiency and modules.game_proficiency and type(modules.game_proficiency.requestOpenWindow) == 'function' then
       menu:addOption(tr('Weapon Proficiency'), function() modules.game_proficiency.requestOpenWindow(lookThing) end)
     end
   end
@@ -1220,16 +1252,16 @@ function createThingMenu(tile, menuPosition, lookThing, useThing, creatureThing)
     end
   end
 
-  if useThing and useThing:isContainer() and (useThing:getParentContainer() or useThing:getPosition().x == 65535) and useThing:getId() ~= 28750 and localPlayer:isInStash() then
+  if useThing and useThing:isContainer() and (useThing:getParentContainer() or useThing:getPosition().x == 65535) and useThing:getId() ~= 28750 and isNearDepotLocker() then
     menu:addSeparator()
-    menu:addOption(tr('Stow container\'s content'), function() if m_settings.getOption('stowContainer') then modules.game_stash.stowContainerContent(useThing, nil, false) else g_game.stowItemContainerStack(SUPPLY_STASH_ACTION_STOW_CONTAINER, useThing:getPosition(), useThing:getId(), useThing:getStackPos()) end end)
+    menu:addOption(tr('Stow container\'s content'), function() if m_settings.getOption('stowContainer') then modules.game_stash.stowContainerContent(useThing, nil, false) else modules.game_stash.stowContainerItems(useThing) end end)
   end
 
-  if useThing and useThing:isStowable() and (useThing:getParentContainer() or useThing:getPosition().x == 65535) and localPlayer:isInStash() then
-    if not isGoldCoin(useThing:getId()) and useThing:isMarketable() then
+  if useThing and not useThing:isCreature() and not useThing:isContainer() and useThing:isPickupable() and (useThing:getParentContainer() or useThing:getPosition().x == 65535) and isNearDepotLocker() then
+    if not isGoldCoin(useThing:getId()) then
       menu:addSeparator()
-      menu:addOption(tr('Stow'), function() g_game.stowItem(useThing:getPosition(), useThing:getId(), useThing:getStackPos(), useThing:getCount()) end)
-      menu:addOption(tr('Stow all items of this type'), function() g_game.stowItemContainerStack(SUPPLY_STASH_ACTION_STOW_STACK, useThing:getPosition(), useThing:getId(), useThing:getStackPos()) end)
+      menu:addOption(tr('Stow'), function() modules.game_stash.stowSingleItem(useThing) end)
+      menu:addOption(tr('Stow all items of this type'), function() modules.game_stash.stowItemType(useThing) end)
     end
   end
 
@@ -1264,6 +1296,12 @@ function createThingMenu(tile, menuPosition, lookThing, useThing, creatureThing)
       end
 
       menu:addOption(tr('Inspect %s Prestige', creatureThing:getName()), function() g_game.sendRequestPrestigeInspect(creatureThing:getName()) end)
+      menu:addOption(tr('Level to share experience'), function()
+        local level = localPlayer:getLevel() or 0
+        local minShareLevel = math.ceil(level * 2 / 3)
+        local maxShareLevel = math.floor(level * 3 / 2)
+        modules.game_textmessage.displayGameMessage(string.format('The level %d character shares experience with levels %d to %d.', level, minShareLevel, maxShareLevel))
+      end)
       menu:addSeparator()
       menu:addOption(tr('Copy Name'), function() g_window.setClipboardText(creatureThing:getName()) end)
 

@@ -15,6 +15,13 @@ local SUPPLY_STASH_DETAILS_MARKER = 0x5354
 local ACTION_OPEN = 1
 local ACTION_STOW_ALL = 2
 local ACTION_WITHDRAW = 3
+local ACTION_STOW_ITEM = 4
+local ACTION_STOW_TYPE = 5
+local ACTION_STOW_CONTAINER = 6
+
+-- globals used by game_interface's context menu (were previously undefined)
+SUPPLY_STASH_ACTION_STOW_STACK = 1
+SUPPLY_STASH_ACTION_STOW_CONTAINER = 2
 
 local marketCategoryNames = {
   [1] = "Armors",
@@ -62,6 +69,48 @@ local function sendSupplyStashRequest(action, itemId, count, tier)
     msg:addU8(tier or 0)
   end
   protocolGame:send(msg)
+end
+
+local function sendStowRequest(action, pos, itemId, stackPos, count)
+  local protocolGame = g_game.getProtocolGame()
+  if not protocolGame or not pos then
+    return
+  end
+
+  local msg = OutputMessage.create()
+  msg:addU8(OPCODE_SUPPLY_STASH_REQUEST)
+  msg:addU8(action)
+  msg:addU16(pos.x)
+  msg:addU16(pos.y)
+  msg:addU8(pos.z)
+  msg:addU16(itemId)
+  msg:addU8(stackPos or 0)
+  msg:addU8(math.max(0, math.min(count or 0, 255)))
+  protocolGame:send(msg)
+end
+
+-- Public: stow a single item stack (context menu 'Stow').
+function stowSingleItem(item)
+  if not item then
+    return
+  end
+  sendStowRequest(ACTION_STOW_ITEM, item:getPosition(), item:getId(), item:getStackPos(), item:getCount())
+end
+
+-- Public: stow every carried/depot item of the same type (context menu 'Stow all items of this type').
+function stowItemType(item)
+  if not item then
+    return
+  end
+  sendStowRequest(ACTION_STOW_TYPE, item:getPosition(), item:getId(), item:getStackPos(), 0)
+end
+
+-- Public: stow all stashable items inside a container (context menu 'Stow container\'s content').
+function stowContainerItems(item)
+  if not item then
+    return
+  end
+  sendStowRequest(ACTION_STOW_CONTAINER, item:getPosition(), item:getId(), item:getStackPos(), 0)
 end
 
 local function buildStashItem(row, details)
@@ -182,11 +231,15 @@ function init()
   g_game.stashWithdraw = function(itemId, tier, count)
     sendSupplyStashRequest(ACTION_WITHDRAW, itemId, count or 1, tier or 0)
   end
-  g_game.stowItem = function()
-    sendSupplyStashRequest(ACTION_STOW_ALL)
+  g_game.stowItem = function(pos, itemId, stackPos, count)
+    sendStowRequest(ACTION_STOW_ITEM, pos, itemId, stackPos, count)
   end
-  g_game.stowItemContainerStack = function()
-    sendSupplyStashRequest(ACTION_STOW_ALL)
+  g_game.stowItemContainerStack = function(action, pos, itemId, stackPos)
+    if action == SUPPLY_STASH_ACTION_STOW_CONTAINER then
+      sendStowRequest(ACTION_STOW_CONTAINER, pos, itemId, stackPos, 0)
+    else
+      sendStowRequest(ACTION_STOW_TYPE, pos, itemId, stackPos, 0)
+    end
   end
 
   if g_game.isOnline() then
@@ -373,6 +426,9 @@ function refreshStashItems(searchText)
 
     local itemWidget = itemBox:getChildById('item')
     itemWidget:setItem(stashItem)
+    if itemWidget.setItemCount then
+      itemWidget:setItemCount(itemData.itemCount)
+    end
     if ItemsDatabase and ItemsDatabase.setRarityItem then
       ItemsDatabase.setRarityItem(itemWidget, stashItem)
     end
@@ -540,7 +596,7 @@ function stowContainerContent(item, toPos, moveItem)
     if moveItem then
       g_game.move(item, toPos, 1)
     else
-      g_game.stowItemContainerStack(SUPPLY_STASH_ACTION_STOW_CONTAINER, item:getPosition(), item:getId(), item:getStackPos())
+      sendStowRequest(ACTION_STOW_CONTAINER, item:getPosition(), item:getId(), item:getStackPos(), 0)
     end
 
     stowContainer:destroy()

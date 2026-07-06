@@ -409,6 +409,15 @@ function onGameStart()
 
     -- Initialize topbar proficiency widget
     initTopBarProficiency()
+
+    -- Warm the server-side weapon catalog so the item context menu can offer
+    -- 'Weapon Proficiency' before the window is opened for the first time.
+    scheduleEvent(function()
+        if g_game.isOnline() and hasWeaponProficiencyProtocol() then
+            sendWeaponProficiencyAction(1)
+            WeaponProficiency.allProficiencyRequested = true
+        end
+    end, 1500)
 end
 
 -- Initialize the proficiency widget in the top stats bar
@@ -856,6 +865,28 @@ function toggle()
     else
         requestOpenWindow()
     end
+end
+
+-- Returns whether the weapon proficiency system can talk to the server.
+function isAvailable()
+    return hasWeaponProficiencyProtocol()
+end
+
+-- Returns whether the given item id has a weapon proficiency entry in the catalog.
+function isProficiencyWeapon(itemId)
+    if not WeaponProficiency then
+        return false
+    end
+    if not WeaponProficiency._itemCacheReady then
+        local ok = pcall(function()
+            WeaponProficiency:createItemCache()
+        end)
+        if not ok then
+            return false
+        end
+    end
+    local catalog = WeaponProficiency.catalogItems
+    return catalog ~= nil and catalog[itemId] == true
 end
 
 -- Request to open proficiency window with optional item redirect

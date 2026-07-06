@@ -12,7 +12,7 @@ StashItemBox < UIButton
     margin-top: 1
     virtual: true
     priceable: true
-    show-count: false
+    show-count: true
     virtual-count: true
     draggable: false
     @onClick: modules.game_stash.withdrawItem(self)
