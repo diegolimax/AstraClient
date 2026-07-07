@@ -386,8 +386,28 @@ function scheduleAutoSelect(delay)
     end, delay)
 end
 
+-- Requests the full weapon catalog from the server shortly after login (with retries),
+-- so the context menu can show 'Weapon Proficiency' before the window is ever opened.
+local function scheduleCatalogWarmup(attempt)
+    attempt = attempt or 1
+    scheduleEvent(function()
+        if not g_game.isOnline() or not hasWeaponProficiencyProtocol() then
+            return
+        end
+        if WeaponProficiency.serverCatalogReceived then
+            return
+        end
+        sendWeaponProficiencyAction(1)
+        WeaponProficiency.allProficiencyRequested = true
+        if attempt < 4 then
+            scheduleCatalogWarmup(attempt + 1)
+        end
+    end, 1500 * attempt)
+end
+
 function onGameStart()
     WeaponProficiency.allProficiencyRequested = false
+    WeaponProficiency.serverCatalogReceived = false
     WeaponProficiency.saveWeaponMissing = false
     WeaponProficiency.firstItemRequested = nil
     WeaponProficiency.cacheList = {}
@@ -403,21 +423,16 @@ function onGameStart()
     WeaponProficiency.button = createProficiencyButton()
     setProficiencyButtonState(false)
 
+    -- Warm the server-side weapon catalog so the item context menu can offer
+    -- 'Weapon Proficiency' right after login, before the window is opened.
+    scheduleCatalogWarmup()
+
     if not hasWeaponProficiencyProtocol() then
         return
     end
 
     -- Initialize topbar proficiency widget
     initTopBarProficiency()
-
-    -- Warm the server-side weapon catalog so the item context menu can offer
-    -- 'Weapon Proficiency' before the window is opened for the first time.
-    scheduleEvent(function()
-        if g_game.isOnline() and hasWeaponProficiencyProtocol() then
-            sendWeaponProficiencyAction(1)
-            WeaponProficiency.allProficiencyRequested = true
-        end
-    end, 1500)
 end
 
 -- Initialize the proficiency widget in the top stats bar
@@ -523,6 +538,7 @@ function onWeaponProficiencyCatalogItem(itemId, marketCategory, name)
 end
 
 function onWeaponProficiencyCatalogReady()
+    WeaponProficiency.serverCatalogReceived = true
     sortWeaponProficiency(MarketCategory.WeaponsAll)
     for _, categoryId in pairs(WeaponProficiency.ItemCategory) do
         sortWeaponProficiency(categoryId)

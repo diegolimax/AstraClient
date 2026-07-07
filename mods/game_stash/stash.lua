@@ -113,6 +113,24 @@ function stowContainerItems(item)
   sendStowRequest(ACTION_STOW_CONTAINER, item:getPosition(), item:getId(), item:getStackPos(), 0)
 end
 
+-- Formats stash amounts compactly for the item grid:
+-- 999 -> "999", 1000 -> "1k", 11179 -> "11.1k", 20000 -> "20k", 2500000 -> "2.5kk".
+local function formatStashAmount(amount)
+  amount = tonumber(amount) or 0
+  local function compact(value, suffix)
+    value = math.floor(value * 10) / 10
+    local text = string.format("%.1f", value)
+    text = text:gsub("%.0$", "")
+    return text .. suffix
+  end
+  if amount >= 1000000 then
+    return compact(amount / 1000000, "kk")
+  elseif amount >= 1000 then
+    return compact(amount / 1000, "k")
+  end
+  return tostring(amount)
+end
+
 local function buildStashItem(row, details)
   local itemId = row.itemId
   local item = Item.create(itemId, row.amount)
@@ -426,8 +444,9 @@ function refreshStashItems(searchText)
 
     local itemWidget = itemBox:getChildById('item')
     itemWidget:setItem(stashItem)
-    if itemWidget.setItemCount then
-      itemWidget:setItemCount(itemData.itemCount)
+    local amountLabel = itemWidget:getChildById('amountLabel')
+    if amountLabel then
+      amountLabel:setText(formatStashAmount(itemData.itemCount))
     end
     if ItemsDatabase and ItemsDatabase.setRarityItem then
       ItemsDatabase.setRarityItem(itemWidget, stashItem)
@@ -436,7 +455,7 @@ function refreshStashItems(searchText)
       ItemsDatabase.setTier(itemWidget, stashItem)
     end
     itemWidget.stashTier = tier
-    itemWidget:setTooltip(itemData.marketData.name)
+    itemWidget:setTooltip(itemData.marketData.name .. " (" .. itemData.itemCount .. "x)")
     itemWidget:setActionId(itemData.itemCount)
     itemWidget.onMouseRelease = function(widget, mousePos, mouseButton)
       if mouseButton ~= MouseRightButton and (mouseButton ~= MouseLeftButton or not g_keyboard.isCtrlPressed()) then
@@ -562,8 +581,17 @@ function withdrawItem(widget)
   g_keyboard.bindKeyPress("Shift+Right", function() scrollbar:setValue(math.min(scrollbar:getMaximum(), scrollbar:getValue() + 10)) end, countWithdraw)
   g_keyboard.bindKeyPress("Ctrl+Right", function() scrollbar:setValue(math.min(scrollbar:getMaximum(), scrollbar:getValue() + 100)) end, countWithdraw)
 
+  local countLabel = countWithdraw:recursiveGetChildById('countLabel')
+  local updateCountLabel = function(value)
+    if countLabel then
+      countLabel:setText(value .. " / " .. itemCount)
+    end
+  end
+  updateCountLabel(scrollbar:getValue())
+
   scrollbar.onValueChange = function(self, value)
     countWithdraw.contentPanel.item:setItemCount(value)
+    updateCountLabel(value)
   end
 
   scrollbar.onClick =
@@ -648,8 +676,17 @@ function withdrawItemID(itemID, itemCount)
   g_keyboard.bindKeyPress("Ctrl+Right", function() scrollbar:setValue(math.min(scrollbar:getMaximum(), scrollbar:getValue() + 100)) end, countWithdraw)
   g_keyboard.bindKeyPress("Enter", function() retrieveItem(itemID, scrollbar:getValue(), true) end, countWithdraw)
 
+  local countLabel = countWithdraw:recursiveGetChildById('countLabel')
+  local updateCountLabel = function(value)
+    if countLabel then
+      countLabel:setText(value .. " / " .. itemCount)
+    end
+  end
+  updateCountLabel(scrollbar:getValue())
+
   scrollbar.onValueChange = function(self, value)
     countWithdraw.contentPanel.item:setItemCount(value)
+    updateCountLabel(value)
   end
 
   scrollbar.onClick =

@@ -488,6 +488,8 @@ MiniWindow
         SkillValueLabel
           margin-top: 0
           margin-right: 12
+          text-auto-resize: false
+          anchors.left: prev.right
           !text: tr("+0%s", "%")
 
       SmallSkillButton
@@ -501,6 +503,8 @@ MiniWindow
         SkillValueLabel
           margin-top: 0
           margin-right: 12
+          text-auto-resize: false
+          anchors.left: prev.right
           !text: tr("+0%s", "%")
 
       SmallSkillButton

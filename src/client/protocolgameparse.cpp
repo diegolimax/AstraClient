@@ -2179,7 +2179,7 @@ void ProtocolGame::parsePlayerStats(const InputMessagePtr& msg)
     double baseMagicLevel = 0;
     if (!g_game.getFeature(Otc::GameTibia12Protocol)) {
         if (g_game.getFeature(Otc::GameSkillsBase))
-            baseMagicLevel = msg->getU8();
+            baseMagicLevel = g_game.getFeature(Otc::GameDoubleMagicLevel) ? msg->getU16() : msg->getU8();
         else
             baseMagicLevel = magicLevel;
     }

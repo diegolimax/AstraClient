@@ -1,7 +1,7 @@
 CountWithdraw < NewMainWindow
   id: countWithdraw
   !text: tr('Retrieve Items')
-  size: 245 143
+  size: 245 158
 
   Panel
     id: contentPanel
@@ -45,6 +45,18 @@ CountWithdraw < NewMainWindow
       margin-top: 8
       focusable: false
       default-scroll: true
+
+    Label
+      id: countLabel
+      anchors.top: countScrollBar.bottom
+      anchors.left: countScrollBar.left
+      anchors.right: countScrollBar.right
+      height: 14
+      margin-top: 5
+      text-align: center
+      text-auto-resize: false
+      color: #cfcfcf
+      text: 0
 
     HorizontalSeparator
       anchors.bottom: next.top

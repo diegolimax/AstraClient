@@ -11,6 +11,22 @@ local lastManaValue = nil
 
 skillWidgetsOptions = {}
 
+-- Formats big offensive stat values compactly so they fit the row:
+-- 9999 -> "9999", 116000 -> "116k", 116500 -> "116.5k", 2500000 -> "2.5kk".
+local function formatCompactStatValue(value)
+  value = math.floor((tonumber(value) or 0) + 0.5)
+  if value >= 1000000 then
+    local text = string.format("%.1f", math.floor(value / 100000) / 10)
+    text = text:gsub("%.0$", "")
+    return text .. "kk"
+  elseif value >= 10000 then
+    local text = string.format("%.1f", math.floor(value / 100) / 10)
+    text = text:gsub("%.0$", "")
+    return text .. "k"
+  end
+  return tostring(value)
+end
+
 local combatElementMap = {
   [0] = "physical",
   [1] = "fire",
@@ -36,14 +52,16 @@ local function onWheelSkillStats(protocol, opcode, data)
   local dmgHealWidget = skillsWindow:recursiveGetChildById("damageHealingLabel")
   local dmgHealVal = tonumber(data.damageAndHealing) or 0
   if dmgHealWidget then
-    dmgHealWidget:setText(tostring(math.floor(dmgHealVal + 0.5)))
+    dmgHealWidget:setText(formatCompactStatValue(dmgHealVal))
+    dmgHealWidget:setTooltip(tostring(math.floor(dmgHealVal + 0.5)))
   end
 
   local atkWidget = skillsWindow:recursiveGetChildById("attackValue")
   local atkVal = tonumber(data.attackValue) or 0
   local atkElem = tonumber(data.attackElement) or 0
   if atkWidget then
-    atkWidget:recursiveGetChildById("value"):setText(tostring(math.floor(atkVal + 0.5)))
+    atkWidget:recursiveGetChildById("value"):setText(formatCompactStatValue(atkVal))
+    atkWidget:setTooltip(tostring(math.floor(atkVal + 0.5)))
     if atkVal > 0 then
       atkWidget:recursiveGetChildById("value"):setColor("#44ad25")
     end
@@ -836,12 +854,31 @@ function onMiniWindowClose()
   modules.game_sidebuttons.setButtonVisible("skillsWidget", false)
 end
 
-function onExperienceChange(localPlayer, value, oldValue)
-  if value >= 1*(1000000000000000) then
-    setSkillValue('experience', "1kkkk+")
-  else
-    setSkillValue('experience', comma_value(value))
+-- Formats experience using the international short scale:
+-- K = 10^3, M = 10^6, B = 10^9, T = 10^12.
+-- Values below 1B keep the exact comma format; from 1B on they are compacted (2.14B, 4.59T, ...).
+local function formatExperienceValue(value)
+  value = tonumber(value) or 0
+  local scales = {
+    { limit = 1000000000000, suffix = "T" },
+    { limit = 1000000000, suffix = "B" },
+    { limit = 1000000, suffix = "M" },
+    { limit = 1000, suffix = "K" },
+  }
+  if value >= 1000000000 then
+    for _, scale in ipairs(scales) do
+      if value >= scale.limit then
+        local text = string.format("%.2f", math.floor(value / scale.limit * 100) / 100)
+        text = text:gsub("%.?0+$", "")
+        return text .. scale.suffix
+      end
+    end
   end
+  return comma_value(value)
+end
+
+function onExperienceChange(localPlayer, value, oldValue)
+  setSkillValue('experience', formatExperienceValue(value))
 end
 
 function onLevelChange(localPlayer, value, percent)
@@ -849,7 +886,7 @@ function onLevelChange(localPlayer, value, percent)
   local levelLabel = skillsWindow:recursiveGetChildById('level')
   levelLabel:recursiveGetChildById('percent'):setTooltip(tr('You have %s percent to go', 100 - percent))
 
-  local text = tr("%s XP for next level", comma_value(expToAdvance(localPlayer:getLevel(), localPlayer:getExperience())))
+  local text = tr("%s XP for next level", formatExperienceValue(expToAdvance(localPlayer:getLevel(), localPlayer:getExperience())))
   if localPlayer.expSpeed ~= nil then
      local expPerHour = math.floor(localPlayer.expSpeed * 3600)
      if expPerHour > 0 then
@@ -857,7 +894,7 @@ function onLevelChange(localPlayer, value, percent)
         local hoursLeft = (nextLevelExp - localPlayer:getExperience()) / expPerHour
         local minutesLeft = math.floor((hoursLeft - math.floor(hoursLeft))*60)
         hoursLeft = math.floor(hoursLeft)
-        text = text .. '\n' .. tr('currently %s XP per hour, next level in %d hours and %d minutes', comma_value(expPerHour), hoursLeft, minutesLeft)
+        text = text .. '\n' .. tr('currently %s XP per hour, next level in %d hours and %d minutes', formatExperienceValue(expPerHour), hoursLeft, minutesLeft)
      end
   end
 
@@ -1267,11 +1304,13 @@ end
 function onUpdateOffenceStats(player, damageAndHealing, damageValue, damageElement, convertedValue, convertedElement)
   -- Damage and Healing
   local damageHealingWidget = skillsWindow:recursiveGetChildById('damageHealingLabel')
-  damageHealingWidget:setText(damageAndHealing)
+  damageHealingWidget:setText(formatCompactStatValue(damageAndHealing))
+  damageHealingWidget:setTooltip(tostring(damageAndHealing))
 
   -- Attack Value
   local attackWidget = skillsWindow:recursiveGetChildById('attackValue')
-  attackWidget:recursiveGetChildById("value"):setText(damageValue)
+  attackWidget:recursiveGetChildById("value"):setText(formatCompactStatValue(damageValue))
+  attackWidget:setTooltip(tostring(damageValue))
   attackWidget:recursiveGetChildById("combatIcon"):setImageSource("/game_cyclopedia/images/icons/stats/element_" .. damageElement)
 
   -- Converted Damage

@@ -12,7 +12,7 @@ StashItemBox < UIButton
     margin-top: 1
     virtual: true
     priceable: true
-    show-count: true
+    show-count: false
     virtual-count: true
     draggable: false
     @onClick: modules.game_stash.withdrawItem(self)
@@ -29,6 +29,18 @@ StashItemBox < UIButton
       focusable: false
       visible: false
       image-smooth: true
+
+    Label
+      id: amountLabel
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      margin-right: 1
+      margin-bottom: 1
+      text-auto-resize: true
+      font: cipsoftFont
+      color: #ffffff
+      phantom: true
+      focusable: false
 
 NewMainWindow
   id: gameStashWindown
