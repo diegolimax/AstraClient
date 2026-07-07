@@ -796,19 +796,23 @@ function EnterGame.onLoginError(err)
   end
 end
 
-function chooseTextMode()
-  local hiddenButton = enterGame:getChildById('hidden')
-  local hidden = enterGame.accountNameTextEdit:isTextHidden()
+local function toggleTextHidden(field, button)
+  local reveal = field:isTextHidden()
+  field:setTextHidden(not reveal)
 
-  isButtonPressed = not isButtonPressed
-
-  if isButtonPressed then
-    hiddenButton:setImageSource("/images/ui/hidden-button-down")
-    enterGame.accountNameTextEdit:setTextHidden(false)
+  if reveal then
+    button:setImageSource("/images/ui/hidden-button-down")
   else
-    hiddenButton:setImageSource("/images/ui/hidden-button")
-    enterGame.accountNameTextEdit:setTextHidden(true)
+    button:setImageSource("/images/ui/hidden-button")
   end
+end
+
+function chooseTextMode()
+  toggleTextHidden(enterGame.accountNameTextEdit, enterGame:getChildById('hidden'))
+end
+
+function choosePasswordTextMode()
+  toggleTextHidden(enterGame.accountPasswordTextEdit, enterGame:getChildById('hiddenPassword'))
 end
 
 function chooseButtonVisibility()
@@ -827,18 +831,6 @@ function chooseButtonVisibility()
     buttonPass:setVisible(true)
   else
     buttonPass:setVisible(false)
-  end
-end
-
-local function isValidEmail(value)
-  return value == "" or (string.len(value) > 3 and string.find(value, "@"))
-end
-
-function onTextChange()
-  if not isValidEmail(enterGame.accountNameTextEdit:getText()) then
-    enterGame.emailStatus:setVisible(true)
-  else
-    enterGame.emailStatus:setVisible(false)
   end
 end
 
