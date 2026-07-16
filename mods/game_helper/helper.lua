@@ -190,17 +190,40 @@ if not SpellIcons then
   SpellIcons = {}
 end
 
--- Helper function to get spell icon clip using spell.id and iconIndex from SpellInfo.Default
--- This is the centralized function that all modules should use for spell icons
--- @param spellId: The spell ID (spell.id from SpellInfo.Default)
+-- Resolve icons exactly like game_actionbar: SpellInfo.icon -> SpellIcons client id.
+-- Accepts either a SpellInfo entry or its server spell id so all Helper panels
+-- can share the same icon code.
+local function getClientSpellIconId(spell)
+  local spellData = spell
+  if type(spellData) ~= 'table' and Spells and Spells.getSpellDataById then
+    spellData = Spells.getSpellDataById(tonumber(spell))
+  end
+
+  if spellData and SpellIcons then
+    local iconData = SpellIcons[spellData.icon]
+    if iconData then
+      return iconData[1]
+    end
+  end
+
+  -- Preserve support for custom entries whose server and client ids match.
+  return type(spell) == 'table' and tonumber(spell.id) or tonumber(spell)
+end
+
+-- Helper function to get the 32x32 spell icon clip.
+-- @param spell: SpellInfo entry or spell server id
 -- @param profile: Optional profile name (default: 'Default')
 -- @return: Icon clip string in format "x y width height"
-_Helper.getSpellIconClip = function(spellId, profile)
-  if not spellId then
+_Helper.getSpellIconClip = function(spell, profile)
+  local spellIconId = getClientSpellIconId(spell)
+  if not spellIconId then
     return "0 0 32 32"
   end
-  if Spells and Spells.getImageClip then
-    local success, clip = pcall(function() return Spells.getImageClip(spellId, profile or 'Default') end)
+
+  if Spells and Spells.getImageClipNormal then
+    local success, clip = pcall(function()
+      return Spells.getImageClipNormal(spellIconId, profile or 'Default')
+    end)
     if success and clip then
       return clip
     end
@@ -214,8 +237,11 @@ end
 -- @return: Icon source path
 _Helper.getSpellIconSource = function(profile)
   profile = profile or 'Default'
-  if SpelllistSettings and SpelllistSettings[profile] and SpelllistSettings[profile].iconFile then
-    return SpelllistSettings[profile].iconFile
+  if SpelllistSettings and SpelllistSettings[profile] then
+    local source = SpelllistSettings[profile].iconsFolder or SpelllistSettings[profile].iconFile
+    if source then
+      return source
+    end
   end
   return '/images/game/spells/spell-icons-32x32'
 end
@@ -250,18 +276,15 @@ local function getHarmonyCountSafe(p)
   return 0
 end
 
--- Server to Client Vocation Mapping
+-- Raw player vocation -> spell vocation IDs.
+-- Standard Tibia IDs are 1-10; some supported servers use 11-15 for promoted
+-- vocations. Spell definitions use {base, promoted}, e.g. Sorcerer {1, 5}.
 local ServerToClientVocationMap = {
-  [1] = { 4, 8 },
-  [11] = { 4, 8 },  -- Knight
-  [2] = { 3, 7 },
-  [12] = { 3, 7 },  -- Paladin
-  [3] = { 1, 5 },
-  [13] = { 1, 5 },  -- Sorcerer
-  [4] = { 2, 6 },
-  [14] = { 2, 6 },  -- Druid
-  [5] = { 9, 10 },
-  [15] = { 9, 10 }, -- Monk
+  [1] = { 1, 5 }, [5] = { 1, 5 }, [13] = { 1, 5 },   -- Sorcerer / Master Sorcerer
+  [2] = { 2, 6 }, [6] = { 2, 6 }, [14] = { 2, 6 },   -- Druid / Elder Druid
+  [3] = { 3, 7 }, [7] = { 3, 7 }, [12] = { 3, 7 },   -- Paladin / Royal Paladin
+  [4] = { 4, 8 }, [8] = { 4, 8 }, [11] = { 4, 8 },   -- Knight / Elite Knight
+  [9] = { 9, 10 }, [10] = { 9, 10 }, [15] = { 9, 10 } -- Monk / Exalted Monk
 }
 
 -- Check if server vocation can use spell based on client vocations
@@ -498,7 +521,10 @@ local function playerHasSpell(player, spellId)
   -- This is a fallback - if getSpells is available, use it
   if player and player.getSpells then
     local success, spells = pcall(function() return player:getSpells() end)
-    if success and spells then
+    -- TFS 8.60 sends spell count 0 in the basic-data packet. An empty list
+    -- means the learned-spell feature is unavailable, not that the player
+    -- knows no spells. Only enforce the list when the server populated it.
+    if success and type(spells) == 'table' and next(spells) ~= nil then
       return table.contains(spells, spellId)
     end
   end
@@ -540,6 +566,46 @@ local lastEngineSpectators = {}
 
 -- Flag to prevent saving config during login/initialization
 local skipSaveUntilLoaded = true
+
+-- Creature ids are temporary and change on every login. Keep Helper settings
+-- under a stable, filesystem-safe key derived from the character name.
+local lastCharacterStorageDir = nil
+
+local function getCharacterStorageName(currentPlayer)
+  local name = g_game and g_game.getCharacterName and g_game.getCharacterName() or nil
+  if (not name or name == '') and currentPlayer and currentPlayer.getName then
+    name = currentPlayer:getName()
+  end
+  return type(name) == 'string' and name or nil
+end
+
+local function getCharacterStorageDir(currentPlayer)
+  local name = getCharacterStorageName(currentPlayer)
+  if name and name ~= '' then
+    local key = name:lower():gsub('[^%w%-_]', function(char)
+      return string.format('_%02x', string.byte(char))
+    end)
+    lastCharacterStorageDir = '/characterdata/characters/' .. key
+  end
+
+  if lastCharacterStorageDir then
+    return lastCharacterStorageDir
+  end
+
+  -- Login is not fully initialized yet; retain compatibility as a fallback.
+  if currentPlayer then
+    return '/characterdata/' .. currentPlayer:getId()
+  end
+  return nil
+end
+
+local function getLegacyCharacterStorageDir(currentPlayer)
+  if not currentPlayer then return nil end
+  return '/characterdata/' .. currentPlayer:getId()
+end
+
+_Helper.getCharacterStorageDir = getCharacterStorageDir
+_Helper.getLegacyCharacterStorageDir = getLegacyCharacterStorageDir
 
 
 helperConfig = {
@@ -686,19 +752,14 @@ function translateVocation(v)
 end
 
 -- Mapeamento de vocações do servidor para IDs de classe do cliente (spells)
--- Servidor envia: Knight(1,11), Paladin(2,12), Sorcerer(3,13), Druid(4,14), Monk(5,15)
--- Cliente usa: Sorcerer {1,5}, Druid {2,6}, Paladin {3,7}, Knight {4,8}, Monk {9,10}
+-- Standard IDs are 1-10; alternate promoted IDs are 11-15.
+-- Spell definitions use the standard {base, promoted} pairs.
 local ServerToClientVocationMap = {
-  [1] = { 4, 8 },
-  [11] = { 4, 8 },  -- Knight
-  [2] = { 3, 7 },
-  [12] = { 3, 7 },  -- Paladin
-  [3] = { 1, 5 },
-  [13] = { 1, 5 },  -- Sorcerer
-  [4] = { 2, 6 },
-  [14] = { 2, 6 },  -- Druid
-  [5] = { 9, 10 },
-  [15] = { 9, 10 }, -- Monk
+  [1] = { 1, 5 }, [5] = { 1, 5 }, [13] = { 1, 5 },   -- Sorcerer / Master Sorcerer
+  [2] = { 2, 6 }, [6] = { 2, 6 }, [14] = { 2, 6 },   -- Druid / Elder Druid
+  [3] = { 3, 7 }, [7] = { 3, 7 }, [12] = { 3, 7 },   -- Paladin / Royal Paladin
+  [4] = { 4, 8 }, [8] = { 4, 8 }, [11] = { 4, 8 },   -- Knight / Elite Knight
+  [9] = { 9, 10 }, [10] = { 9, 10 }, [15] = { 9, 10 } -- Monk / Exalted Monk
 }
 
 -- Retorna a lista de IDs de vocação do cliente correspondente à vocação enviada pelo servidor
@@ -1026,6 +1087,9 @@ function init()
 end
 
 function terminate()
+  -- Persist while the cached character path and UI-backed configs still exist.
+  saveSettings()
+
   if LocalPlayer then
     disconnect(LocalPlayer, {
       onPartyMembersChange = onPartyMembersChange,
@@ -1120,6 +1184,7 @@ function hide()
   if modules.game_helper.tools and modules.game_helper.tools.commitQuiverInputs then
     modules.game_helper.tools.commitQuiverInputs()
   end
+  saveSettings()
   if helper then
     g_keyboard.unbindKeyPress('Tab', toggleNextWindow, helper)
     helper:hide()
@@ -1698,6 +1763,9 @@ function online()
 end
 
 function offline()
+  -- Save before logout cleanup resets transient UI/alarm state.
+  saveSettings()
+
   -- Bloquear ações durante transição
   isTransitioningPlayer = true
 
@@ -1755,9 +1823,6 @@ function offline()
 
   -- Remover hotkeys antes de deslogar (serão re-registradas no próximo online())
   unregisterAllHelperHotkeys()
-
-  -- Salvar antes de deslogar
-  saveSettings()
 
   -- Clear preset lists on disconnect (keep contexts alive — they're recreated only in init())
   local pm = modules.game_helper and modules.game_helper.presetManager
@@ -2485,7 +2550,7 @@ function assignTrainingSpell(button, isHaste)
     widget.voc = vocs
 
     widget.source = _Helper.getSpellIconSource()
-    widget.clip = _Helper.getSpellIconClip(spellData.id)
+    widget.clip = _Helper.getSpellIconClip(spellData)
     widget.image:setImageSource(widget.source)
     widget.image:setImageClip(widget.clip)
 
@@ -2689,7 +2754,7 @@ function assignSpell(button, groupName, groups, tableToAssign)
     widget.voc = spellData.vocations
 
     widget.source = _Helper.getSpellIconSource()
-    widget.clip = _Helper.getSpellIconClip(spellData.id)
+    widget.clip = _Helper.getSpellIconClip(spellData)
     widget.image:setImageSource(widget.source)
     widget.image:setImageClip(widget.clip)
 
@@ -2986,7 +3051,7 @@ function assignSpellForMagicShooter(button, callback)
     widget.voc = spellData.vocations
 
     widget.source = _Helper.getSpellIconSource()
-    widget.clip = _Helper.getSpellIconClip(spellData.id)
+    widget.clip = _Helper.getSpellIconClip(spellData)
     widget.image:setImageSource(widget.source)
     widget.image:setImageClip(widget.clip)
 
@@ -5212,11 +5277,11 @@ function saveSettings()
   end
 
   local currentPlayer = g_game.getLocalPlayer()
-  if not currentPlayer then
+  local dir = getCharacterStorageDir(currentPlayer)
+  if not dir then
     return
   end
 
-  local dir    = "/characterdata/" .. currentPlayer:getId()
   local folder = dir .. "/helper.json"
 
   g_resources.makeDir(dir)
@@ -5230,6 +5295,7 @@ function saveSettings()
 
   -- Salvar estado do helper enabled
   cleanConfig.helperAutomaticFunctionsEnabled = helperAutomaticFunctionsEnabled
+  cleanConfig.characterName = getCharacterStorageName(currentPlayer)
 
   -- Save current equip config back to active profile
   if modules.game_helper and modules.game_helper.equip and modules.game_helper.equip.saveConfig then
@@ -5386,8 +5452,20 @@ function loadSettings()
     return false
   end
 
-  -- mesmo caminho usado no saveSettings
-  local folder = "/characterdata/" .. currentPlayer:getId() .. "/helper.json"
+  -- Prefer the stable per-character path. Read the old runtime-id path once
+  -- and copy it forward so existing users keep their configuration.
+  local dir = getCharacterStorageDir(currentPlayer)
+  if not dir then return false end
+  local folder = dir .. "/helper.json"
+  local legacyDir = getLegacyCharacterStorageDir(currentPlayer)
+  local legacyFolder = legacyDir and (legacyDir .. "/helper.json") or nil
+  local migratedFromLegacy = false
+
+  if not g_resources.fileExists(folder) and legacyFolder and legacyFolder ~= folder and
+      g_resources.fileExists(legacyFolder) then
+    folder = legacyFolder
+    migratedFromLegacy = true
+  end
 
   local function resetToDefaults()
     local savedHotkeys = _Helper.HotkeyManager.preserveAll()
@@ -5455,13 +5533,22 @@ function loadSettings()
     return false
   end
 
+  local rawConfig = nil
   local status, result = pcall(function()
-    return json.decode(g_resources.readFileContents(folder))
+    rawConfig = g_resources.readFileContents(folder)
+    return json.decode(rawConfig)
   end)
 
   if not status or not result then
     resetToDefaults()
     return false
+  end
+
+  if migratedFromLegacy and rawConfig then
+    g_resources.makeDir(dir)
+    pcall(function()
+      g_resources.writeFileContents(dir .. "/helper.json", rawConfig)
+    end)
   end
 
   -- Preservar funções de hotkey (não são serializáveis, então não vêm do arquivo)

@@ -37,6 +37,168 @@ local keybindClearOldMessage = KeyBind:getKeyBind("Misc.", "Clear oldest message
 local widgetItem
 local lastAction = 0
 local npcTalkMaxDistance = 3
+local ITEM_DECORATION_KIT = 23398
+-- 8.6 dat does not flag Store decoration-kit outputs as wrapable.
+local ITEM_DECORATION_KIT_WRAPABLE_RANGES = {
+  {12699, 12699},
+  {22736, 22737},
+  {23399, 23411},
+  {23414, 23414},
+  {23417, 23445},
+  {23448, 23455},
+  {23536, 23537},
+  {23691, 23691},
+  {23693, 23720},
+  {23722, 23725},
+  {24416, 24435},
+  {25103, 25104},
+  {25174, 25175},
+  {25182, 25183},
+  {25200, 25200},
+  {25210, 25233},
+  {25720, 25723},
+  {25879, 25883},
+  {25889, 25893},
+  {25899, 25900},
+  {25903, 25914},
+  {26075, 26078},
+  {26081, 26084},
+  {26088, 26099},
+  {26101, 26123},
+  {26150, 26167},
+  {26170, 26174},
+  {27661, 27671},
+  {27673, 27675},
+  {27679, 27689},
+  {27691, 27700},
+  {27702, 27703},
+  {28525, 28525},
+  {28559, 28564},
+  {28671, 28671},
+  {28674, 28690},
+  {28694, 28694},
+  {28696, 28699},
+  {28912, 28914},
+  {28919, 28948},
+  {30227, 30230},
+  {30232, 30249},
+  {31183, 31197},
+  {31207, 31214},
+  {31217, 31226},
+  {31382, 31382},
+  {31462, 31462},
+  {31464, 31464},
+  {31466, 31469},
+  {31679, 31684},
+  {31687, 31698},
+  {31703, 31706},
+  {31931, 31951},
+  {31955, 31956},
+  {32123, 32123},
+  {32128, 32166},
+  {32473, 32536},
+  {32541, 32566},
+  {32751, 32756},
+  {32775, 32793},
+  {32795, 32801},
+  {32907, 32912},
+  {32918, 32918},
+  {32943, 32974},
+  {32979, 32979},
+  {33026, 33049},
+  {34027, 34071},
+  {34269, 34276},
+  {34278, 34278},
+  {34280, 34280},
+  {34282, 34282},
+  {34284, 34305},
+  {34309, 34309},
+  {34312, 34325},
+  {34332, 34332},
+  {35153, 35193},
+  {35203, 35209},
+  {35582, 35582},
+  {35584, 35586},
+  {35851, 35900},
+  {35911, 35939},
+  {35941, 35944},
+  {35949, 35949},
+  {35954, 35964},
+  {35969, 35969},
+  {35973, 35974},
+  {36617, 36654},
+  {36748, 36754},
+  {36756, 36756},
+  {36833, 36833},
+  {36865, 36869},
+  {36995, 36995},
+  {37004, 37034},
+  {37165, 37165},
+  {37174, 37212},
+  {37519, 37520},
+  {37700, 37700},
+  {37746, 37746},
+  {37763, 37816},
+  {38640, 38640},
+  {38707, 38707},
+  {39419, 39447},
+  {39496, 39502},
+  {39504, 39510},
+  {39517, 39526},
+  {39668, 39668},
+  {39767, 39810},
+  {42267, 42308},
+  {42320, 42368},
+  {50435, 50436},
+  {51186, 51186},
+  {51188, 51190},
+  {51196, 51199},
+  {51204, 51223},
+  {51237, 51237},
+}
+
+local function isDecorationKitWrapable(thing)
+  if not thing or not thing:isItem() then
+    return false
+  end
+
+  local thingId = thing:getId()
+  for _, range in ipairs(ITEM_DECORATION_KIT_WRAPABLE_RANGES) do
+    if thingId >= range[1] and thingId <= range[2] then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function getTopDecorationKitWrapableThing(tile)
+  if not tile or type(tile.getThings) ~= 'function' then
+    return nil
+  end
+
+  local things = tile:getThings()
+  for i = #things, 1, -1 do
+    if isDecorationKitWrapable(things[i]) then
+      return things[i]
+    end
+  end
+
+  return nil
+end
+
+local function isDecorationKitThing(thing)
+  return thing and thing:isItem() and thing:getId() == ITEM_DECORATION_KIT
+end
+
+local function showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing)
+  if not isDecorationKitThing(useThing) then
+    return false
+  end
+
+  createThingMenu(tile, menuPosition, lookThing, useThing, creatureThing)
+  return true
+end
 
 function canTalkToNpc(creature)
   if not creature or not creature:isNpc() then
@@ -1148,21 +1310,23 @@ function createThingMenu(tile, menuPosition, lookThing, useThing, creatureThing)
 
   if not g_app.isMobile() then shortcut = '(Alt)' else shortcut = nil end
   if useThing and not useThing:isStatic() then
-    if useThing:isContainer() then
-      if useThing:getParentContainer() then
-        menu:addOption(tr('Open'), function() g_game.open(useThing, useThing:getParentContainer()) end)
-        menu:addOption(tr('Open in new window'), function() g_game.openContainer(useThing) end)
-      else
-        menu:addOption(tr('Open in new window'), function() g_game.openContainer(useThing) end)
-      end
-    else
-      if useThing:isMultiUse() then
-        menu:addOption(tr('Use with ...'), function() startUseWith(useThing) end)
-      else
-        if creatureThing and creatureThing:isNpc() then
-          menu:addOption(tr('Use'), function() g_game.use(creatureThing) end)
+    if not isDecorationKitThing(useThing) then
+      if useThing:isContainer() then
+        if useThing:getParentContainer() then
+          menu:addOption(tr('Open'), function() g_game.open(useThing, useThing:getParentContainer()) end)
+          menu:addOption(tr('Open in new window'), function() g_game.openContainer(useThing) end)
         else
-          menu:addOption(tr('Use'), function() g_game.use(useThing) end)
+          menu:addOption(tr('Open in new window'), function() g_game.openContainer(useThing) end)
+        end
+      else
+        if useThing:isMultiUse() then
+          menu:addOption(tr('Use with ...'), function() startUseWith(useThing) end)
+        else
+          if creatureThing and creatureThing:isNpc() then
+            menu:addOption(tr('Use'), function() g_game.use(creatureThing) end)
+          else
+            menu:addOption(tr('Use'), function() g_game.use(useThing) end)
+          end
         end
       end
     end
@@ -1175,13 +1339,18 @@ function createThingMenu(tile, menuPosition, lookThing, useThing, creatureThing)
       end
     end
 
-    if useThing:isWrapable() then
-      menu:addOption(tr('Wrap'), function() g_game.wrap(useThing) end)
-    elseif tile and tile:getTopWrapableThing() then
-      menu:addOption(tr('Wrap'), function() g_game.wrap(tile:getTopWrapableThing()) end)
+    local wrapThing
+    if useThing:isWrapable() or isDecorationKitWrapable(useThing) then
+      wrapThing = useThing
+    elseif tile then
+      wrapThing = tile:getTopWrapableThing() or getTopDecorationKitWrapableThing(tile)
     end
 
-    if useThing:isUnwrapable() then
+    if wrapThing then
+      menu:addOption(tr('Wrap'), function() g_game.wrap(wrapThing) end)
+    end
+
+    if useThing:isUnwrapable() or useThing:getId() == ITEM_DECORATION_KIT then
       menu:addOption(tr('Unwrap'), function() g_game.wrap(useThing) end)
     end
     local podiumIds = {RENOWN_PODIUM, LEGACY_RENOWN_PODIUM, VIGOUR_PODIUM, TENACITY_PODIUM, ASTRA_MONSTER_PODIUM}
@@ -1418,15 +1587,6 @@ local function callThingBool(thing, methodName)
   return hasThingMethod(thing, methodName) and thing[methodName](thing) or false
 end
 
-local quickLootOpenOnlyContainerIds = {
-  [3497] = true,
-  [3498] = true,
-  [3499] = true,
-  [3500] = true,
-  [3502] = true,
-  [12902] = true
-}
-
 local function isQuickLootFeatureEnabled()
   return g_game.getFeature(GameQuickLootFlags) or g_game.getFeature(GameTibia12Protocol)
 end
@@ -1445,22 +1605,15 @@ local function isRootLootContainer(thing)
     not thing:getParentContainer()
 end
 
-local function isQuickLootWorldContainerThing(thing, allowPickupable)
-  return isRootLootContainer(thing) and
-    not callThingBool(thing, 'isPlayerCorpse') and
-    not quickLootOpenOnlyContainerIds[thing:getId()] and
-    (allowPickupable or not callThingBool(thing, 'isPickupable'))
+local function isQuickLootTargetThing(thing)
+  return isQuickLootCorpseThing(thing)
 end
 
-local function isQuickLootTargetThing(thing, allowPickupable)
-  return isQuickLootCorpseThing(thing) or isQuickLootWorldContainerThing(thing, allowPickupable)
-end
-
-local function findQuickLootThing(tile, useThing, lookThing, allowPickupable)
-  if isQuickLootTargetThing(useThing, allowPickupable) then
+local function findQuickLootThing(tile, useThing, lookThing)
+  if isQuickLootTargetThing(useThing) then
     return useThing
   end
-  if isQuickLootTargetThing(lookThing, allowPickupable) then
+  if isQuickLootTargetThing(lookThing) then
     return lookThing
   end
 
@@ -1468,7 +1621,7 @@ local function findQuickLootThing(tile, useThing, lookThing, allowPickupable)
     local things = tile:getThings()
     if type(things) == 'table' then
       for _, thing in ipairs(things) do
-        if isQuickLootTargetThing(thing, allowPickupable) then
+        if isQuickLootTargetThing(thing) then
           return thing
         end
       end
@@ -1478,8 +1631,8 @@ local function findQuickLootThing(tile, useThing, lookThing, allowPickupable)
   return nil
 end
 
-local function shouldBlockQuickLootForCreature(quickLootThing, useThing, lookThing, creatureThing)
-  return creatureThing and not creatureThing:isPlayer() and quickLootThing ~= useThing and quickLootThing ~= lookThing
+local function shouldBlockQuickLootForCreature(creatureThing)
+  return creatureThing and not callThingBool(creatureThing, 'isLocalPlayer')
 end
 
 function processClassicControl(tile, menuPosition, mouseButton, autoWalkPos, lookThing, useThing, creatureThing, attackCreature, marking)
@@ -1496,14 +1649,14 @@ function processClassicControl(tile, menuPosition, mouseButton, autoWalkPos, loo
     end
   end
 
-  local quickLootThing = findQuickLootThing(tile, useThing, lookThing, isLootLeftClick) or lootThing or useThing
+  local quickLootThing = findQuickLootThing(tile, useThing, lookThing) or lootThing or useThing
 
   if quickLootThing and useLoot and isQuickLootFeatureEnabled() then
-    if shouldBlockQuickLootForCreature(quickLootThing, useThing, lookThing, creatureThing) then
+    if shouldBlockQuickLootForCreature(creatureThing) then
       goto next
     end
 
-    if isQuickLootTargetThing(quickLootThing, isLootLeftClick) or (isItemThing(quickLootThing) and mouseButton == MouseLeftButton and callThingBool(quickLootThing, 'inCorpse')) then
+    if isQuickLootTargetThing(quickLootThing) or (isItemThing(quickLootThing) and mouseButton == MouseLeftButton and callThingBool(quickLootThing, 'inCorpse')) then
       g_game.quickLoot(quickLootThing:getPosition(), quickLootThing:getId(), quickLootThing:getStackPos(true), true)
       return true
     end
@@ -1517,6 +1670,10 @@ function processClassicControl(tile, menuPosition, mouseButton, autoWalkPos, loo
   :: next ::
 
   if useThing and mouseButton == MouseRightButton and g_keyboard.isShiftPressed() then
+    if showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
+      return true
+    end
+
     if useThing and useThing:isContainer() then
       g_game.open(useThing)
       return true
@@ -1525,14 +1682,24 @@ function processClassicControl(tile, menuPosition, mouseButton, autoWalkPos, loo
     local thing = g_things.getThingType(useThing:getId())
     if creatureThing and not thing:hasAttribute(ThingAttrForceUse) and not creatureThing:getTile():hasDoor() then
       g_game.follow(creatureThing)
+    elseif showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
+      return true
     elseif useThing then
       g_game.use(useThing)
     end
   end
 
   if useThing and keyboardModifiers == KeyboardNoModifier and mouseButton == MouseRightButton and not g_mouse.isPressed(MouseLeftButton) then
+    if showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
+      return true
+    end
+
     local thing = g_things.getThingType(useThing:getId())
     if not creatureThing and thing:hasAttribute(ThingAttrForceUse) then
+      if showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
+        return true
+      end
+
       g_game.use(useThing)
       return true
     end
@@ -1562,6 +1729,8 @@ function processClassicControl(tile, menuPosition, mouseButton, autoWalkPos, loo
       end
     elseif useThing:isMultiUse() then
       startUseWith(useThing)
+      return true
+    elseif showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
       return true
     else
       g_game.use(useThing)
@@ -1612,9 +1781,9 @@ end
 function processRegularControl(tile, menuPosition, mouseButton, autoWalkPos, lookThing, useThing, creatureThing, attackCreature, marking)
   local keyboardModifiers = g_keyboard.getModifiers()
 
-  local quickLootThing = findQuickLootThing(tile, useThing, lookThing, false)
+  local quickLootThing = findQuickLootThing(tile, useThing, lookThing)
   if quickLootThing and g_keyboard.isShiftPressed() and mouseButton == MouseRightButton and isQuickLootFeatureEnabled() then
-    if shouldBlockQuickLootForCreature(quickLootThing, useThing, lookThing, creatureThing) then
+    if shouldBlockQuickLootForCreature(creatureThing) then
       goto next
     end
 
@@ -1631,6 +1800,10 @@ function processRegularControl(tile, menuPosition, mouseButton, autoWalkPos, loo
     g_game.look(lookThing)
     return true
   elseif useThing and keyboardModifiers == KeyboardCtrlModifier and (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
+    if showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
+      return true
+    end
+
     if useThing:isContainer() then
       if useThing:getParentContainer() then
         g_game.open(useThing, useThing:getParentContainer())
@@ -1640,6 +1813,8 @@ function processRegularControl(tile, menuPosition, mouseButton, autoWalkPos, loo
       return true
     elseif useThing:isMultiUse() then
       startUseWith(useThing)
+      return true
+    elseif showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
       return true
     else
       g_game.use(useThing)
@@ -1686,9 +1861,9 @@ function processSmartControl(tile, menuPosition, mouseButton, autoWalkPos, lookT
     return false
   end
 
-  local quickLootThing = findQuickLootThing(tile, useThing, lookThing, false)
+  local quickLootThing = findQuickLootThing(tile, useThing, lookThing)
   if quickLootThing and g_keyboard.isAltPressed() and mouseButton == MouseLeftButton and isQuickLootFeatureEnabled() then
-    if shouldBlockQuickLootForCreature(quickLootThing, useThing, lookThing, creatureThing) then
+    if shouldBlockQuickLootForCreature(creatureThing) then
       goto next
     end
 
@@ -1707,6 +1882,10 @@ function processSmartControl(tile, menuPosition, mouseButton, autoWalkPos, lookT
       end
       return true
     elseif useThing and mouseButton == MouseLeftButton then
+      if showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
+        return true
+      end
+
       if useThing:isContainer() then
         if useThing:getParentContainer() then
           g_game.open(useThing, useThing:getParentContainer())
@@ -1715,6 +1894,8 @@ function processSmartControl(tile, menuPosition, mouseButton, autoWalkPos, lookT
         end
       elseif useThing:isMultiUse() then
         startUseWith(useThing)
+      elseif showDecorationKitMenu(tile, menuPosition, lookThing, useThing, creatureThing) then
+        return true
       elseif useThing:isUsable() or useThing:isForceUse() or useThing:isPickupable() then
         g_game.use(useThing)
       elseif (useThing:isGround() or useThing:isGroundBorder() or useThing:isFullGround() or useThing:isIgnoreLook() or useThing:isNotPathable()) and autoWalkPos then
@@ -2338,7 +2519,7 @@ function setupLeftActions()
       local tile = g_map.getTile(usePos)
       if not tile then return end
       local thing = tile:getTopUseThing()
-      if thing then
+      if thing and not isDecorationKitThing(thing) then
         g_game.use(thing)
       end
     end

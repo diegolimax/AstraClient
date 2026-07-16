@@ -253,6 +253,9 @@ local function findSubOfferById(offerId)
 end
 
 function Offers:stopAllEvents()
+	if HomeOffer.cancelRender then
+		HomeOffer:cancelRender()
+	end
 	removeEvent(HomeOffer.event)
 	removeEvent(HomeOffer.timerEvent)
 	removeEvent(Offers.event)
@@ -456,7 +459,7 @@ function Offers:refreshOffers(displayOffer, redirect, filter)
 				calldescription(offer.id)
 			end
 		end
-		if offer.icon ~= "" then
+		if offer.icon ~= "" and widget.image then
 			local currentWidget = widget.image
 			currentWidget.currentImageRequest = Store.currentRequest
 			Store.imageRequests[Store.currentRequest] = currentWidget
@@ -468,7 +471,7 @@ function Offers:refreshOffers(displayOffer, redirect, filter)
 			end
 
 			Store:downloadImage(currentWidget.currentImageRequest, "64/"..offer.icon)
-    	elseif offer.itemId ~= 0 then
+		elseif offer.itemId ~= 0 and widget.item then
 			widget.item:setItemId(offer.itemId)
 			widget.item:hook()
 		elseif offer.offerType == CATEGORY_MOUNT then
@@ -730,7 +733,7 @@ function Offers:onSelectionOffer(_, selectedWidget)
 	local offer = Offers.selectedWidget.offer
 	calldescription(offer.id)
 
-	if offer.icon ~= "" then
+	if offer.icon ~= "" and selectedWidget.image then
 		local widget = Offers.displayPanel.infopanel.image
 		if selectedWidget.image.imagePath then
 			clearWidgetImageRequest(widget)

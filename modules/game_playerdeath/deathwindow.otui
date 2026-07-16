@@ -24,28 +24,19 @@ DeathWindow < NewMainWindow
     anchors.left: parent.left
 
   Button
-    id: buttonStore
-    !text: tr('Store')
-    size: 43 20
-    anchors.left: parent.left
-    anchors.bottom: parent.bottom
-    margin-left: 210
-    margin-bottom: 12
-
-  Button
     id: buttonOk
     !text: tr('Ok')
     size: 43 20
-    anchors.left: prev.left
+    anchors.right: next.left
     anchors.bottom: parent.bottom
-    margin-left: 48
+    margin-right: 5
     margin-bottom: 12
 
   Button
     id: buttonCancel
     !text: tr('Cancel')
     size: 43 20
-    anchors.left: prev.left
+    anchors.right: parent.right
     anchors.bottom: parent.bottom
-    margin-left: 48
+    margin-right: 12
     margin-bottom: 12

@@ -51,26 +51,43 @@ local function getAlarmsFilePath()
   if not currentPlayer then
     return nil
   end
-  local dir = "/characterdata/" .. currentPlayer:getId()
-  return dir, dir .. "/" .. ALARMS_FILENAME
+  local dir = _Helper.getCharacterStorageDir and _Helper.getCharacterStorageDir(currentPlayer) or
+      ("/characterdata/" .. currentPlayer:getId())
+  local legacyDir = "/characterdata/" .. currentPlayer:getId()
+  return dir, dir .. "/" .. ALARMS_FILENAME, legacyDir .. "/" .. ALARMS_FILENAME
 end
 
 local function loadFromFile()
-  local dir, filePath = getAlarmsFilePath()
+  local dir, filePath, legacyFilePath = getAlarmsFilePath()
   if not filePath then
     return nil
   end
 
+  local migratedFromLegacy = false
   if not g_resources.fileExists(filePath) then
-    return nil
+    if legacyFilePath and legacyFilePath ~= filePath and g_resources.fileExists(legacyFilePath) then
+      filePath = legacyFilePath
+      migratedFromLegacy = true
+    else
+      return nil
+    end
   end
 
+  local rawConfig = nil
   local status, result = pcall(function()
-    return json.decode(g_resources.readFileContents(filePath))
+    rawConfig = g_resources.readFileContents(filePath)
+    return json.decode(rawConfig)
   end)
 
   if not status or not result then
     return nil
+  end
+
+  if migratedFromLegacy and rawConfig then
+    g_resources.makeDir(dir)
+    pcall(function()
+      g_resources.writeFileContents(dir .. "/" .. ALARMS_FILENAME, rawConfig)
+    end)
   end
 
   return result

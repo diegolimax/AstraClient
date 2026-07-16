@@ -4031,8 +4031,10 @@ void ProtocolGame::parseKillTracker(const InputMessagePtr& msg)
     const Outfit& monsterOutfit = getOutfit(msg, true);
 
     ItemVector dropItems;
+    ItemVector lootItems;
+    std::vector<std::string> lootNames;
 
-    std::function<void(int)> parseContainer = [&](int depth) {
+    const auto parseContainer = [&](const auto& self, int depth) -> void {
         if (depth > 4) {
             msg->getU8();
             return;
@@ -4044,24 +4046,26 @@ void ProtocolGame::parseKillTracker(const InputMessagePtr& msg)
             ItemPtr item = Item::create(itemId);
 
             if (item && item->isThingTypeContainer()) {
-                parseContainer(depth + 1);
+                self(self, depth + 1);
                 dropItems.push_back(item);
                 continue;
             }
 
             const uint8_t count = msg->getU8();
             msg->getU16(); // worth
-            msg->getString(); // item name
+            const std::string itemName = msg->getString();
 
             if (item && item->getId() != 0) {
                 item->setCount(std::max<int>(1, count));
                 dropItems.push_back(item);
+                lootItems.push_back(item);
+                lootNames.push_back(itemName);
             }
         }
     };
 
-    parseContainer(1);
-    g_lua.callGlobalField("g_game", "onKillTracker", monsterName, monsterOutfit, dropItems);
+    parseContainer(parseContainer, 1);
+    g_lua.callGlobalField("g_game", "onKillTracker", monsterName, monsterOutfit, dropItems, lootItems, lootNames);
 }
 
 void ProtocolGame::parseSupplyTracker(const InputMessagePtr& msg)
@@ -4754,6 +4758,20 @@ CreaturePtr ProtocolGame::getCreature(const InputMessagePtr& msg, int type)
         int speed = msg->getU16();
         if (g_game.getFeature(Otc::GameTibia12Protocol) && g_game.getProtocolVersion() >= 1240)
             msg->getU8();
+
+        const bool hasAstraCreatureIcons = g_game.getFeature(Otc::GameAstraCreatureIcons);
+        std::vector<std::tuple<uint8_t, uint8_t, uint16_t>> creatureIcons;
+        if (hasAstraCreatureIcons) {
+            uint8_t count = msg->getU8();
+            creatureIcons.reserve(count);
+            for (uint8_t i = 0; i < count; ++i) {
+                uint8_t iconId = msg->getU8();
+                uint8_t category = msg->getU8();
+                uint16_t iconCount = msg->getU16();
+                creatureIcons.emplace_back(iconId, category, iconCount);
+            }
+        }
+
         int skull = msg->getU8();
         int shield = msg->getU8();
 
@@ -4781,10 +4799,6 @@ CreaturePtr ProtocolGame::getCreature(const InputMessagePtr& msg, int type)
             }
         }
 
-        const bool hasAstraCreatureIcons =
-            g_game.getFeature(Otc::GameAstraCreatureIcons) ||
-            (g_game.getFeature(Otc::GameCreatureIcons) && g_game.getFeature(Otc::GameAstraQuiverCountU16));
-
         if (g_game.getFeature(Otc::GameCreatureIcons)) {
             icon = msg->getU8();
         }
@@ -4806,18 +4820,6 @@ CreaturePtr ProtocolGame::getCreature(const InputMessagePtr& msg, int type)
 
         if (g_game.getProtocolVersion() >= 854 || g_game.getFeature(Otc::GameCreatureWalkthrough))
             unpass = msg->getU8();
-
-        std::vector<std::tuple<uint8_t, uint8_t, uint16_t>> creatureIcons;
-        if (hasAstraCreatureIcons) {
-            uint8_t count = msg->getU8();
-            creatureIcons.reserve(count);
-            for (uint8_t i = 0; i < count; ++i) {
-                uint8_t iconId = msg->getU8();
-                uint8_t category = msg->getU8();
-                uint16_t iconCount = msg->getU16();
-                creatureIcons.emplace_back(iconId, category, iconCount);
-            }
-        }
 
         if (creature) {
             creature->setHealthPercent(healthPercent);
@@ -4904,7 +4906,7 @@ ItemPtr ProtocolGame::getItem(const InputMessagePtr& msg, int id, bool hasDescri
     else if (item->isFluidContainer() || item->isSplash()) {
         item->setCountOrSubType(msg->getU8());
     }
-    if (item->rawGetThingType()->isContainer() && (g_game.getFeature(Otc::GameTibia12Protocol) || g_game.getFeature(Otc::GameQuickLootFlags))) {
+    if (item->rawGetThingType()->isContainer() && g_game.getFeature(Otc::GameTibia12Protocol)) {
         uint8_t hasQuickLootFlags = msg->getU8();
         if (hasQuickLootFlags > 0) {
             item->setQuickLootFlags(msg->getU32()); // quick loot flags

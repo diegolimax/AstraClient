@@ -293,6 +293,36 @@ function numbertoboolean(number)
   end
 end
 
+function calculateRateInWindow(values, retentionWindowMs)
+  local now = g_clock.millis()
+  local firstValid = 1
+  local length = #values
+  while firstValid <= length and now - values[firstValid].tick > retentionWindowMs do
+    firstValid = firstValid + 1
+  end
+
+  if firstValid > 1 then
+    local kept = length - firstValid + 1
+    for index = 1, kept do
+      values[index] = values[firstValid + index - 1]
+    end
+    for index = kept + 1, length do
+      values[index] = nil
+    end
+  end
+
+  if #values == 0 then
+    return 0
+  end
+
+  local total = 0
+  for _, value in ipairs(values) do
+    total = total + value.amount
+  end
+  local elapsed = math.max(1000, now - values[1].tick)
+  return math.ceil((total * 1000) / elapsed)
+end
+
 function protectedcall(func, ...)
   local status, ret = pcall(func, ...)
   if status then
@@ -309,6 +339,48 @@ function protectedcall(func, ...)
   return false
 end
 
+local SLOW_SIGNAL_CALLBACK_US = 5000
+local SLOW_SIGNAL_WARNING_INTERVAL_MS = 1000
+local slowSignalWarnings = {}
+
+local function reportSlowSignalCallback(callback, elapsedUs, signalOrigin)
+  local callbackInfo = nil
+  if type(callback) == 'function' then
+    callbackInfo = debug.getinfo(callback, "Sln")
+  end
+  local callbackSource = "lua"
+  local callbackName = "anonymous"
+  if callbackInfo then
+    callbackSource = callbackInfo.short_src or callbackInfo.source or callbackSource
+    if callbackInfo.linedefined and callbackInfo.linedefined > 0 then
+      callbackSource = callbackSource .. ":" .. callbackInfo.linedefined
+    end
+    callbackName = callbackInfo.name or callbackName
+  end
+
+  local warningKey = callbackSource .. "#" .. callbackName
+  local now = g_clock.realMillis()
+  local lastWarning = slowSignalWarnings[warningKey]
+  if lastWarning and now - lastWarning < SLOW_SIGNAL_WARNING_INTERVAL_MS then
+    return
+  end
+  slowSignalWarnings[warningKey] = now
+
+  g_logger.warning(string.format(
+    "[SlowLua] callback %s (%s) took %.3f ms; signal origin: %s",
+    callbackName, callbackSource, elapsedUs / 1000, signalOrigin))
+end
+
+local function callSignalCallback(callback, signalOrigin, ...)
+  local startedAt = g_clock.realMicros()
+  local status, ret = pcall(callback, ...)
+  local elapsedUs = g_clock.realMicros() - startedAt
+  if elapsedUs >= SLOW_SIGNAL_CALLBACK_US then
+    reportSlowSignalCallback(callback, elapsedUs, signalOrigin)
+  end
+  return status, ret
+end
+
 function signalcall(param, ...)
   local desc = "lua"
   local info = debug.getinfo(2, "Sl")
@@ -317,7 +389,7 @@ function signalcall(param, ...)
   end
 
   if type(param) == 'function' then
-    local status, ret = pcall(param, ...)
+    local status, ret = callSignalCallback(param, desc, ...)
     if status then
       return ret
     else
@@ -325,7 +397,7 @@ function signalcall(param, ...)
     end
   elseif type(param) == 'table' then
     for k,v in pairs(param) do
-      local status, ret = pcall(v, ...)
+      local status, ret = callSignalCallback(v, desc, ...)
       if status then
         if ret then return true end
       else

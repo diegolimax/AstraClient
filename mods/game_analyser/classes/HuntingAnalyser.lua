@@ -1,30 +1,3 @@
--- using object, in the future you can open more than one window
-local valueInSeconds = function(t)
-    local d = 0
-    local time = 0
-    local now = g_clock.millis()
-    if #t > 0 then
-		local itemsToBeRemoved = 0
-        for i, v in ipairs(t) do
-            if now - v.tick <= 3000 then
-                if time == 0 then
-                    time = v.tick
-                end
-                d = d + v.amount
-            else
-				itemsToBeRemoved = itemsToBeRemoved + 1
-            end
-        end
-
-		-- items are added in order, so we can safely
-		-- remove only the first items
-		for i = 1, itemsToBeRemoved do
-			table.remove(t, 1)
-		end
-    end
-    return math.ceil(d/((now-time)/1000))
-end
-
 local function compactNumber(value)
 	if type(tokformat) == 'function' then
 		return tokformat(value)
@@ -163,6 +136,9 @@ local function getPerHourValue(primary)
 end
 
 function HuntingAnalyser:updateWindow(ignoreVisible)
+	local curHPS = calculateRateInWindow(HuntingAnalyser.healingTicks, 3000)
+	HuntingAnalyser.healingHour = math.max(HuntingAnalyser.healingHour, curHPS)
+
 	if not HuntingAnalyser.window:isVisible() and not ignoreVisible then
 		return
 	end
@@ -295,8 +271,6 @@ function HuntingAnalyser:updateWindow(ignoreVisible)
 		contentsPanel.healing.lastValue = HuntingAnalyser.healing
 	end
 
-	local curHPS = valueInSeconds(HuntingAnalyser.healingTicks)
-	HuntingAnalyser.healingHour = HuntingAnalyser.healingHour > curHPS and HuntingAnalyser.healingHour or curHPS
 	if not tonumber(HuntingAnalyser.healingHour) then
 		HuntingAnalyser.healingHour = 0
 	end
@@ -458,7 +432,6 @@ end
 
 function HuntingAnalyser:addDealDamage(value)
 	HuntingAnalyser.damage = HuntingAnalyser.damage + value
-	HuntingAnalyser.damageTicks[#HuntingAnalyser.damageTicks + 1] = {amount = value, tick = g_clock.millis()}
 end
 
 function HuntingAnalyser:addMonsterKilled(monsterName)

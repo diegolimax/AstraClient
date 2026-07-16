@@ -7,7 +7,7 @@ highscore = nil
 isHiddenMenuActive = false
 currentOpenWidget = nil
 
-local MAIN_BUTTONS_BASE_HEIGHT = 101 -- 77px base + 20px Battle Pass button + 4px margin
+local MAIN_BUTTONS_BASE_HEIGHT = 77 -- Corrected base height so it doesn't leave 27px empty space
 
 -- Hotfix when a new button is introduced
 local forceButtons = {
@@ -51,6 +51,24 @@ local function ensureForcedButtons(activeWidgets, inactiveWidgets)
   end
 end
 
+local function populateActiveButtons(activeWidgets, buttonPanel)
+  local activeCount = 0
+  for _, v in pairs(activeWidgets) do
+    activeCount = activeCount + 1
+    local widget = g_ui.createWidget("UISideButton", buttonPanel)
+    widget.button:setImageSource(tr("/images/topbuttons/%s.png", v))
+    widget:setId(v)
+    widget.button.onClick = function() handleButtonClick(widget.button) end
+    widget.button:setTooltip(tr(getControlButtonTooltip(v), "Open"))
+  end
+  return activeCount
+end
+
+local function applyButtonsHeight(activeCount)
+  local totalLines = math.max(1, math.ceil(activeCount / 5))
+  buttonsWindow:setHeight(MAIN_BUTTONS_BASE_HEIGHT + ((totalLines - 1) * 22))
+end
+
 function openBattlePassWindow()
   if modules.game_battlepass and modules.game_battlepass.BattlePass then
     modules.game_battlepass.BattlePass.onBattlePassBarClick()
@@ -68,16 +86,8 @@ function init()
 
   ensureForcedButtons(activeWidgets, inactiveWidgets)
 
-  for _, v in pairs(activeWidgets) do
-    local widget = g_ui.createWidget("UISideButton", buttonPanel)
-    widget.button:setImageSource(tr("/images/topbuttons/%s.png", v))
-    widget:setId(v)
-    widget.button.onClick = function() handleButtonClick(widget.button) end
-    widget.button:setTooltip(tr(getControlButtonTooltip(v), "Open"))
-  end
-
-  local totalLines = math.max(2, math.ceil(buttonPanel:getChildCount() / 5))
-  buttonsWindow:setHeight(MAIN_BUTTONS_BASE_HEIGHT + ((totalLines - 1) * 22))
+  local activeCount = populateActiveButtons(activeWidgets, buttonPanel)
+  applyButtonsHeight(activeCount)
 
   if modules.game_minimap and modules.game_minimap.isOpen and modules.game_minimap.isOpen() then
     setButtonVisible("lenshelpFunction", true)
@@ -129,16 +139,8 @@ function updateSideButtons()
   ensureForcedButtons(activeWidgets, inactiveWidgets)
 
   buttonPanel:destroyChildren()
-  for _, v in pairs(activeWidgets) do
-    local widget = g_ui.createWidget("UISideButton", buttonPanel)
-    widget.button:setImageSource(tr("/images/topbuttons/%s.png", v))
-    widget:setId(v)
-    widget.button.onClick = function() handleButtonClick(widget.button) end
-    widget.button:setTooltip(tr(getControlButtonTooltip(v), "Open"))
-  end
-
-  local totalLines = math.max(2, math.ceil(buttonPanel:getChildCount() / 5))
-  buttonsWindow:setHeight(MAIN_BUTTONS_BASE_HEIGHT + ((totalLines - 1) * 22))
+  local activeCount = populateActiveButtons(activeWidgets, buttonPanel)
+  applyButtonsHeight(activeCount)
 end
 
 function terminate()

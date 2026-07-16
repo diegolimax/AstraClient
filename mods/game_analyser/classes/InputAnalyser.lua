@@ -61,32 +61,6 @@ local obj = {
 	eventGraph = nil,
 }
 
-local valueInSeconds = function(t)
-    local d = 0
-    local time = 0
-    local now = g_clock.millis()
-    if #t > 0 then
-		local itemsToBeRemoved = 0
-        for i, v in ipairs(t) do
-            if now - v.tick <= 3000 then
-                if time == 0 then
-                    time = v.tick
-                end
-                d = d + v.amount
-            else
-				itemsToBeRemoved = itemsToBeRemoved + 1
-            end
-        end
-
-		-- items are added in order, so we can safely
-		-- remove only the first items
-		for i = 1, itemsToBeRemoved do
-			table.remove(t, 1)
-		end
-    end
-    return math.ceil(d/((now-time)/1000))
-end
-
 function InputAnalyser:create()
 	InputAnalyser.window = openedWindows['damageButton']
 
@@ -252,7 +226,7 @@ function InputAnalyser:updateWindow(ignoreVisible)
 end
 
 function InputAnalyser:checkDPS()
-	local curDPS = valueInSeconds(InputAnalyser.damageTicks)
+	local curDPS = calculateRateInWindow(InputAnalyser.damageTicks, 3000)
 	if not curDPS or not tonumber(curDPS) then curDPS = 0 end
 	InputAnalyser.curDPS = curDPS
 	local lastDps = tonumber(InputAnalyser.maxDPS) or 1
