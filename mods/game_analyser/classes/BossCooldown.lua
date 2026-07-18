@@ -152,7 +152,10 @@ function BossCooldown:updateWindow()
 		widget.bossName:setText(short_text(string.capitalize(info.name), 13))
 		widget:setTooltip(string.capitalize(info.name))
 		widget.onClick = function()
-			modules.game_cyclopedia.Bosstiary.onSideButtonRedirect(info.name)
+			local cyclopedia = modules.game_cyclopedia
+			if cyclopedia and cyclopedia.Bosstiary and cyclopedia.Bosstiary.onSideButtonRedirect then
+				cyclopedia.Bosstiary.onSideButtonRedirect(info.name)
+			end
 		end
 
 		local resttime = math.max(0, info.cooldown - os.time())
@@ -178,7 +181,10 @@ function BossCooldown:updateWindow()
 			widget.type = 'timed'
 		end
 
-		modules.game_trackers.BossTracker.checkTrackerCooldown(info.name, info.cooldown)
+		local trackers = modules.game_trackers
+		if trackers and trackers.BossTracker and trackers.BossTracker.checkTrackerCooldown then
+			trackers.BossTracker.checkTrackerCooldown(info.name, info.cooldown)
+		end
 
 		widget.tick = resttime
 		widget.name = info.name

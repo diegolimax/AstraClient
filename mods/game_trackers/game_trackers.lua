@@ -99,6 +99,71 @@ function Trackers.onMonsterTrackerData(trackerType, monsterData)
 	end
 end
 
+-- Forca o re-layout da lista de um tracker apos reconstrucao dos widgets.
+-- Necessario porque UILayout descarta (nao enfileira) updates disparados
+-- enquanto disableUpdates esta ativo, e porque o scrollbar da MiniWindow
+-- mantem o offset antigo apos destroyChildren, empurrando os widgets novos
+-- para fora da area visivel ate um minimize/maximize forcar o layout.
+function Trackers.refreshTrackerLayout(window, resetScroll)
+	if not window then
+		return
+	end
+
+	local contents = window.contentsPanel or window:getChildById('contentsPanel')
+	if contents then
+		-- Replica o efeito do minimize/maximize (que comprovadamente restaura a
+		-- lista): o ciclo hide/show dispara o re-layout completo dos filhos.
+		-- So faz isso se a janela nao estiver minimizada (contents deve ficar
+		-- oculto enquanto minimizada).
+		if not window.minimized and contents:isVisible() then
+			contents:hide()
+			contents:show()
+		end
+
+		local layout = contents:getLayout()
+		if layout and layout.update then
+			layout:update()
+		end
+		if contents.updateLayout then
+			contents:updateLayout()
+		end
+	end
+
+	local scrollbar = window:getChildById('miniwindowScrollBar')
+	if scrollbar and scrollbar.setValue then
+		if resetScroll then
+			scrollbar:setValue(0)
+		elseif scrollbar.getMaximum and scrollbar.getValue then
+			local maximum = scrollbar:getMaximum() or 0
+			if scrollbar:getValue() > maximum then
+				scrollbar:setValue(maximum)
+			end
+		end
+	end
+
+	if window.updateLayout then
+		window:updateLayout()
+	end
+
+	-- Segundo passe no proximo frame: cobre updates que o engine descartou
+	-- durante o rebuild (UILayout nao enfileira updates desabilitados).
+	scheduleEvent(function()
+		if not window or (window.isDestroyed and window:isDestroyed()) then
+			return
+		end
+		local panel = window.contentsPanel or window:getChildById('contentsPanel')
+		if panel then
+			local panelLayout = panel:getLayout()
+			if panelLayout and panelLayout.update then
+				panelLayout:update()
+			end
+			if panel.updateLayout then
+				panel:updateLayout()
+			end
+		end
+	end, 15)
+end
+
 function toggleBossTracker()
 	if bossTrackerWindow:isVisible() then
 		bossTrackerWindow:close()

@@ -89,6 +89,26 @@ function loadData()
   end
 end
 
+-- Sincroniza a Quick Sell Blacklist com o servidor (usada pelo Item Loot
+-- Seller server-side). Enviada no login e a cada alteracao da lista.
+local QUICKSELL_OPCODE = 145
+
+function syncBlacklistToServer()
+  if not g_game.isOnline() then
+    return
+  end
+
+  local protocolGame = g_game.getProtocolGame()
+  if not protocolGame then
+    return
+  end
+
+  local ok, payload = pcall(json.encode, sellAllWhitelist or {})
+  if ok then
+    protocolGame:sendExtendedOpcode(QUICKSELL_OPCODE, payload)
+  end
+end
+
 function removeItemInList(clientId)
   if type(clientId) ~= "number" then
     return
@@ -102,6 +122,7 @@ function removeItemInList(clientId)
       break
     end
   end
+  syncBlacklistToServer()
 end
 
 function inWhiteList(clientId)
@@ -125,6 +146,7 @@ function addToWhitelist(clientId)
   end
 
   table.insert(sellAllWhitelist, clientId)
+  syncBlacklistToServer()
 end
 
 function init()
@@ -289,6 +311,8 @@ function start()
   local benchmark = g_clock.millis()
   loadData()
   consoleln("Sell All Whitelist Loot loaded in " .. (g_clock.millis() - benchmark) / 1000 .. " seconds.")
+  -- envia a blacklist ao servidor apos o login
+  scheduleEvent(syncBlacklistToServer, 1000)
 end
 
 function hide()

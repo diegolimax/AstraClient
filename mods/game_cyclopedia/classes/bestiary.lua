@@ -45,7 +45,7 @@ local function findBestiaryRaceIdByName(name)
   for i = 1, #MonsterList do
     local raceId = tonumber(MonsterList[i][1])
     local monster = monsters[raceId]
-    if normalizeBestiaryName(getMonsterName(monster)) == normalizedName then
+    if monster and normalizeBestiaryName(getMonsterName(monster)) == normalizedName then
       return raceId
     end
   end
@@ -338,6 +338,7 @@ function Bestiary.bestiaryOverview()
 
   local monsterCount = 0
   local beginList = (monsterListPage - 1) * 15 + 1
+  local monsterData = getCyclopediaMonsterList()
 
   for i = 1, #MonsterList do
     if monsterCount == 15 then
@@ -352,7 +353,7 @@ function Bestiary.bestiaryOverview()
     local monsterId = MonsterList[i][1]
     local currentLevel = MonsterList[i][2]
     local extraExperience = MonsterList[i][3]
-    local monster = getCyclopediaMonster(monsterId)
+    local monster = monsterData[tonumber(monsterId) or 0]
     if not monster then
       g_logger.error("Bestiary Overview: failed to retrieve data from monster " .. monsterId)
       goto continue
@@ -361,12 +362,13 @@ function Bestiary.bestiaryOverview()
     local unlocked = currentLevel > 1
     local name = unlocked and string.capitalize(monster[1]) or "?"
     local monsterShader = unlocked and "" or "outfit_black"
+    local monsterWidget = widget:recursiveGetChildById("monster")
     widget:setTooltip(name)
     widget:setText(short_text(name, 14))
-    widget:recursiveGetChildById("monster"):setOutfit({type = monster[2], auxType = monster[3], head = monster[4], body = monster[5], legs = monster[6], feet = monster[7], addons = monster[8], shader = monsterShader})
-    widget:recursiveGetChildById("monster"):setTooltip(name)
+    monsterWidget:setOutfit({type = monster[2], auxType = monster[3], head = monster[4], body = monster[5], legs = monster[6], feet = monster[7], addons = monster[8], shader = monsterShader})
+    monsterWidget:setTooltip(name)
     if unlocked then
-      widget:recursiveGetChildById("monster").onClick = function() backMonster = name; g_game.bestiaryMonsterData(monsterId) end
+      monsterWidget.onClick = function() backMonster = name; g_game.bestiaryMonsterData(monsterId) end
       widget:recursiveGetChildById("monsterButton").onClick = function() backMonster = name; g_game.bestiaryMonsterData(monsterId) end
     end
     widget.totalKill:setText(currentLevel - 1 .." / 3")
@@ -375,11 +377,12 @@ function Bestiary.bestiaryOverview()
       widget.soulCoreIcon:setTooltip(tr('The Animus Mastery for this creature is unlocked.\nIt yields 2%%, plus an additional 0.1%% for every 10 Animus Masteries unlocked, up to a maximum of 4%%.\nYou currently benefit from %.1f%% due to having unlocked %d Animus Masteries.', extraExperience, MasteryCount))
     end
 
+    local checkedWidget = widget:recursiveGetChildById("checked")
     if (currentLevel - 1) >= 3 then
-      widget:recursiveGetChildById("checked"):setVisible(true)
-      widget:recursiveGetChildById("totalKill"):setVisible(false)
+      checkedWidget:setVisible(true)
+      widget.totalKill:setVisible(false)
     else
-      widget:recursiveGetChildById("checked"):setVisible(false)
+      checkedWidget:setVisible(false)
     end
 
     monsterCount = monsterCount + 1
@@ -413,13 +416,23 @@ function Cyclopedia.bestiaryMonsterData(monsterId, bestiaryMonster, currentLevel
   widget:setText(monster[1])
   widget.monster:setOutfit({type = monster[2], auxType = monster[3], head = monster[4], body = monster[5], legs = monster[6], feet = monster[7], addons = monster[8]})
 
-  widget.trackerKills:setChecked(false, true)
+  -- O setChecked deste engine NAO tem modo silencioso: qualquer mudanca
+  -- dispara @onCheckChange -> onTrackMonster -> toggle no servidor, fazendo
+  -- o clique num monstro do tracker REMOVER o tracking dele sem querer.
+  -- Suprime o callback durante o set programatico do estado do checkbox.
+  local trackerCheck = widget.trackerKills
+  local savedCheckChange = trackerCheck.onCheckChange
+  trackerCheck.onCheckChange = nil
+
+  trackerCheck:setChecked(false)
 
   for i, tracked in pairs(monsterTracked) do
     if tracked[1] == monsterId then
-      widget.trackerKills:setChecked(true, true)
+      trackerCheck:setChecked(true)
     end
   end
+
+  trackerCheck.onCheckChange = savedCheckChange
 
   if extraExperience > 0 then
     VisibleCyclopediaPanel:recursiveGetChildById("soulCoreIcon"):setVisible(true)

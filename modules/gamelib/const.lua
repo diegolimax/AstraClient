@@ -491,6 +491,7 @@ ExtendedIds = {
   NeedsUpdate = 7,
   WheelSkills = 145,
   MonkData = 146,
+  AttackSpeed = 147,
   Cavebot = 210,
   SmartFollow = 212,
   BotCheckAlert = 230,

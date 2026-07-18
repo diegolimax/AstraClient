@@ -10,6 +10,7 @@ local RESP_ERROR = 0
 local RESP_CATALOG = 1
 local RESP_SUCCESS = 2
 local RESP_HISTORY = 3
+local RESP_COIN_BALANCE = 4
 
 local registered = false
 local categories = {}
@@ -265,6 +266,10 @@ local function onStoreMessage(protocolGame, msg)
     signalcall(g_game.onStorePurchase, message)
   elseif response == RESP_HISTORY then
     parseHistory(msg)
+  elseif response == RESP_COIN_BALANCE then
+    local coins = msg:getU32()
+    currentCoins = coins
+    signalcall(g_game.onCoinBalance, coins, coins, 0)
   end
   return true
 end

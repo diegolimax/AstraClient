@@ -94,12 +94,15 @@ function BossTracker.showTrackerData()
 	for _, data in ipairs(BossTrackerList) do
 		local creature = monsterList[data[1]]
 		if not creature then
+			-- Fallback: nunca pula o boss; cria o widget mesmo sem dados de outfit
 			g_logger.warning("[BossTracker]: failed to get outfit for Race " .. data[1])
-			goto continue
+			creature = {"Race " .. tostring(data[1]), 0, 0, 0, 0, 0, 0, 0}
 		end
 
 		local widget = g_ui.createWidget('BossPanel', bossTrackerWindow.contentsPanel)
-		widget.creature:setOutfit({type = creature[2], auxType = creature[3], head = creature[4], body = creature[5], legs = creature[6], feet = creature[7], addons = creature[8]})
+		pcall(function()
+			widget.creature:setOutfit({type = creature[2], auxType = creature[3], head = creature[4], body = creature[5], legs = creature[6], feet = creature[7], addons = creature[8]})
+		end)
 		widget:setId(creature[1])
 
 		local bossName = string.capitalize(creature[1])
@@ -173,6 +176,9 @@ function BossTracker.showTrackerData()
 	end
 
 	layout:enableUpdates()
+	-- enableUpdates() nao reagenda os updates descartados durante o rebuild;
+	-- forca o re-layout e corrige o scroll para os widgets ficarem visiveis.
+	Trackers.refreshTrackerLayout(bossTrackerWindow, true)
 end
 
 function BossTracker.onRedirect(widget)

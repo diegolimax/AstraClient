@@ -166,6 +166,11 @@ namespace Otc
         LifeLeechAmount,
         ManaLeechChance,
         ManaLeechAmount,
+        OnslaughtChance,
+        RuseChance,
+        MomentumChance,
+        TranscendenceChance,
+        AmplificationChance,
         LastSkill
     };
 

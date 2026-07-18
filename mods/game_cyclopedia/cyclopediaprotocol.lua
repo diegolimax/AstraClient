@@ -16,6 +16,7 @@ local RESP_BESTIARY_PROGRESS = 6
 
 local registered = false
 local monsterCache = {}
+local mergedMonsterList = nil
 
 local function getStaticCreatureName(raceId)
   local monsters = g_things.getMonsterList()
@@ -48,6 +49,10 @@ local function cacheCreatureInfo(raceId, creature)
     creature.feet,
     creature.addons
   }
+
+  if mergedMonsterList then
+    mergedMonsterList[raceId] = monsterCache[raceId]
+  end
 end
 
 function cacheCyclopediaMonster(raceId, creature)
@@ -72,11 +77,13 @@ function cacheCyclopediaMonster(raceId, creature)
 end
 
 function getCyclopediaMonsterList()
-  local monsters = g_things.getMonsterList() or {}
-  for raceId, creature in pairs(monsterCache) do
-    monsters[raceId] = creature
+  if not mergedMonsterList then
+    mergedMonsterList = g_things.getMonsterList() or {}
+    for raceId, creature in pairs(monsterCache) do
+      mergedMonsterList[raceId] = creature
+    end
   end
-  return monsters
+  return mergedMonsterList
 end
 
 function getCyclopediaMonster(raceId)
@@ -357,6 +364,7 @@ function CyclopediaProtocol.register()
   if registered then
     return
   end
+  mergedMonsterList = nil
   ProtocolGame.unregisterOpcode(OPCODE_SEND)
   ProtocolGame.registerOpcode(OPCODE_SEND, onCyclopediaMessage)
   registered = true

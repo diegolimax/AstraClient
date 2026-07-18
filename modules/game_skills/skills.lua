@@ -170,9 +170,73 @@ local function onWheelSkillStats(protocol, opcode, data)
     end
   end
 
+  -- Specialized magic level bonuses (Fire/Energy/... Magic Level)
+  local player = g_game.getLocalPlayer()
+  if player and player.setMagicBoost and data.magicBoosts ~= nil then
+    for i = 0, 11 do
+      player:setMagicBoost(i, 0)
+    end
+    if type(data.magicBoosts) == "table" then
+      for idx, value in pairs(data.magicBoosts) do
+        local numIdx = tonumber(idx)
+        local numValue = tonumber(value) or 0
+        if numIdx then
+          player:setMagicBoost(numIdx, numValue)
+        end
+      end
+    end
+    onMagicBoostChange(player, player:getMagicBoosts())
+  end
+
   scheduleEvent(function()
     skillsWindow:setContentMaximumHeight(math.max(125, getContentPanelHeight() + 6))
   end, 100)
+end
+
+local OPCODE_ATTACK_SPEED = ExtendedIds.AttackSpeed -- 0x93 (147)
+
+-- Attack speed skill: displayed like a regular skill (level number, green when item bonus,
+-- progress bar with tries percent). Data pushed by the server via extended opcode 0x92.
+local function onAttackSpeedStats(protocol, opcode, data)
+  if type(data) ~= "table" then
+    return
+  end
+
+  local skill = skillsWindow:recursiveGetChildById("attackSpeed")
+  if not skill then
+    return
+  end
+
+  local level = tonumber(data.level) or 10
+  local bonus = tonumber(data.bonus) or 0
+  local percent = tonumber(data.percent) or 0
+  local interval = tonumber(data.interval) or 0
+  local total = level + bonus
+
+  local widget = skill:getChildById("value")
+  widget:setText(tostring(total))
+
+  local tooltip
+  if bonus > 0 then
+    widget:setColor('#44ad25') -- green: item bonus active
+    tooltip = tr("%s = %s +%s", total, level, bonus)
+  else
+    widget:setColor('#bbbbbb')
+    tooltip = tostring(level)
+  end
+
+  if interval > 0 then
+    tooltip = tooltip .. "\n" .. tr("You perform one attack every %.2f seconds (%.2f attacks per second).", interval / 1000, 1000 / interval)
+  end
+  tooltip = tooltip .. "\n" .. tr('You have %s percent to go', 100 - percent)
+
+  skill:setTooltip(tooltip)
+
+  local percentWidget = skill:getChildById("percent")
+  if percentWidget then
+    percentWidget:setPercent(percent)
+    percentWidget:setTooltip(tooltip)
+  end
 end
 
 local function onMonkData(protocol, opcode, data)
@@ -262,6 +326,7 @@ function init()
   skillsWindow = g_ui.loadUI('skills')
   ProtocolGame.registerExtendedJSONOpcode(ExtendedIds.WheelSkills, onWheelSkillStats)
   ProtocolGame.registerExtendedJSONOpcode(ExtendedIds.MonkData, onMonkData)
+  ProtocolGame.registerExtendedJSONOpcode(OPCODE_ATTACK_SPEED, onAttackSpeedStats)
   storeXPButton = skillsWindow:recursiveGetChildById('boostButton')
   skillsWindow:hide()
 
@@ -324,6 +389,7 @@ function terminate()
 
   ProtocolGame.unregisterExtendedJSONOpcode(ExtendedIds.WheelSkills)
   ProtocolGame.unregisterExtendedJSONOpcode(ExtendedIds.MonkData)
+  ProtocolGame.unregisterExtendedJSONOpcode(OPCODE_ATTACK_SPEED)
 
   skillsWindow:destroy()
 end
@@ -547,16 +613,22 @@ function setSkillBase(id, value, baseValue, loyalty)
     local player = g_game.getLocalPlayer()
     if player and player.getMagicBoosts then
       local magicBoost = player:getMagicBoosts()
-      if magicBoost and table.size(magicBoost) > 0 then
-        additionalTooltip = tr('\n\nAdditional magic level modifiers:')
+      if magicBoost then
+        local lines = ''
         for i, count in pairs(magicBoost) do
-          additionalTooltip = additionalTooltip .. string.format("\n%s magic level +%d", combatNames[i], count)
+          count = tonumber(count) or 0
+          if count ~= 0 then
+            lines = lines .. string.format("\n%s Magic Level: +%d", combatNames[i] or ("Element " .. tostring(i)), count)
+          end
+        end
+        if lines ~= '' then
+          additionalTooltip = tr('\n\nAdditional magic level modifiers:') .. lines
         end
       end
     end
   end
 
-  if baseValue <= 0 or value < 0 or (baseValue == value) then
+  if baseValue < 0 or value < 0 or (baseValue == value) then
     if percentWidget then
       local tooltip = ''
       if loyalty > 0 then
@@ -767,6 +839,8 @@ function refresh()
     onSkillChange(player, i, player:getSkillLevel(i), player:getSkillLevelPercent(i))
     onBaseSkillChange(player, i, player:getSkillBaseLevel(i))
   end
+
+  updateTierStats(player)
 
   update()
 
@@ -1046,10 +1120,58 @@ function onSkillChange(localPlayer, id, level, percent)
     setSkillPercent('skillId' .. id, percent)
   end
   onBaseSkillChange(localPlayer, id, localPlayer:getSkillBaseLevel(id))
+
+  -- Tier / special skill attributes (Onslaught, Dodge, Momentum, Transcendence, Amplification)
+  if id > Skill.Fishing then
+    updateTierStats(localPlayer)
+  end
 end
 
 function onBaseSkillChange(localPlayer, id, baseLevel)
   setSkillBase('skillId'..id, localPlayer:getSkillLevel(id), baseLevel, localPlayer:getSkillLoyalty(id))
+end
+
+-- Special skills (crit/leech/tier attributes) arrive in the same skills array;
+-- provide getSpecialSkill if no other module defined it.
+if not LocalPlayer.getSpecialSkill then
+  function LocalPlayer:getSpecialSkill(skillId)
+    return self:getSkillLevel(skillId)
+  end
+end
+
+-- Updates the tier-attribute rows (below Mitigation / in the Misc panel) straight from
+-- the special skill values the server sends in the skills packet.
+function updateTierStats(player)
+  player = player or g_game.getLocalPlayer()
+  if not player or not skillsWindow then
+    return
+  end
+
+  local function setSpecial(widgetId, skillId, tooltipKey)
+    local widget = skillsWindow:recursiveGetChildById(widgetId)
+    if not widget then
+      return
+    end
+    local raw = tonumber(player:getSpecialSkill(skillId)) or 0
+    local pct = raw / 100 -- server sends basis points (e.g. 375 = 3.75%)
+    local text = string.format("+%.2f%%", pct):gsub("%.00%%", "%%")
+    widget:recursiveGetChildById('value'):setText(text)
+    if specialTooltips[tooltipKey] then
+      widget:setTooltip(tr(specialTooltips[tooltipKey], string.format("%.2f", pct)))
+    end
+    widget:setVisible(raw > 0)
+  end
+
+  setSpecial('onslaught', Skill.OnslaughtChance, 'onslaught')
+  setSpecial('onslaughtValue', Skill.OnslaughtChance, 'onslaught')
+  setSpecial('ruseValue', Skill.RuseChance, 'ruseValue')
+  setSpecial('momentumValue', Skill.MomentumChance, 'momentumValue')
+  setSpecial('transcendenceValue', Skill.TranscendenceChance, 'transcendenceValue')
+  setSpecial('amplificationValue', Skill.AmplificationChance, 'amplificationValue')
+
+  scheduleEvent(function()
+    skillsWindow:setContentMaximumHeight(math.max(125, getContentPanelHeight() + 6))
+  end, 100)
 end
 
 function onExpBoostChange(localPlayer, time, canBuy)

@@ -172,21 +172,22 @@ function Charm:configureCreatureList(monsters)
     local monsterList = VisibleCyclopediaPanel:recursiveGetChildById('monsterList')
     monsterList:destroyChildren()
     monsters = monsters or {}
+    local monsterData = getCyclopediaMonsterList()
     local sortedMonsters = {}
+    local monsterNames = {}
     for monsterId in pairs(monsters) do
-        sortedMonsters[#sortedMonsters + 1] = tonumber(monsterId) or monsterId
+        local id = tonumber(monsterId) or monsterId
+        sortedMonsters[#sortedMonsters + 1] = id
+        local monster = monsterData[id]
+        monsterNames[id] = (monster and monster[1] or tostring(id)):lower()
     end
 
     table.sort(sortedMonsters, function(a, b)
-        local monsterA = getCyclopediaMonster(a)
-        local monsterB = getCyclopediaMonster(b)
-        local nameA = monsterA and monsterA[1] or tostring(a)
-        local nameB = monsterB and monsterB[1] or tostring(b)
-        return nameA:lower() < nameB:lower()
+        return monsterNames[a] < monsterNames[b]
     end)
 
     for _, monsterId in ipairs(sortedMonsters) do
-        local monster = getCyclopediaMonster(monsterId)
+        local monster = monsterData[monsterId]
         local monsterName = monster and monster[1]
         if monsterName and monsterName ~= "" and monsterName ~= "?" then
             local monsterItem = g_ui.createWidget('CharmListLabel', monsterList)
@@ -265,9 +266,7 @@ function Charm.onCharmData(resetAllCharmPrice, charmData, emptySlots, monsters)
 
     VisibleCyclopediaPanel:recursiveGetChildById('goldResetAmount'):setText(comma_value(resetAllCharmPrice))
 
-    -- make list
-    self:configureCharmPanel()
-    self:configureCreatureList(self.monsters)
+    -- make list (loadMenu -> configureCharmPanel -> setupContentPanel -> configureCreatureList)
     self:loadMenu(self.selectedType)
 end
 
@@ -450,6 +449,11 @@ end
 
 function Charm:onFocusChange(widget, focused)
     if not focused then
+        return
+    end
+
+    -- setupContentPanel was already executed for this charm (avoids duplicated rebuild)
+    if tonumber(widget:getId()) == self.selectedCharm then
         return
     end
 

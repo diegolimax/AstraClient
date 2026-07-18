@@ -271,7 +271,24 @@ MiniWindow
       margin: 5 0 5 0
 
     SkillButton
+      id: attackSpeed
+      tooltip-delayed: true
+      SkillNameLabel
+        !text: tr('Attack Speed')
+      SkillValueLabel
+        !text: tr('-')
+      SkillImage
+        id: skillIcon
+        image-source: /images/game/skills/skill_fast
+        margin-left: 2
+      SkillPercentPanel
+        anchors.left: skillIcon.right
+        margin-left: 5
+        background-color: #00c000
+
+    SkillButton
       id: magiclevel
+      margin-top: 3
       tooltip-delayed: true
       SkillNameLabel
         !text: tr('Magic')
@@ -505,6 +522,7 @@ MiniWindow
           margin-right: 12
           text-auto-resize: false
           anchors.left: prev.right
+          anchors.leftMargin: 10
           !text: tr("+0%s", "%")
 
       SmallSkillButton
@@ -784,18 +802,6 @@ MiniWindow
           margin-right: 12
 
       SmallSkillButton
-        id: ruseValue
-        margin-top: -1
-        tooltip-delayed: true
-        visible: false
-        SkillNameLabel
-          !text: tr('Dodge')
-        SkillValueLabel
-          !text: tr("+0%s", "%")
-          margin-top: 0
-          margin-right: 12
-
-      SmallSkillButton
         id: reflectionValue
         margin-top: -1
         tooltip-delayed: true
@@ -819,7 +825,47 @@ MiniWindow
         type: verticalBox
         fit-children: true
 
-      // Misc Stats //
+      // Tier attributes (only visible when the player has an active bonus) //
+      SmallSkillButton
+        id: amplificationValue
+        margin-top: -1
+        tooltip-delayed: true
+        visible: false
+        SkillNameLabel
+          !text: tr('Amplification')
+        SkillValueLabel
+          anchors.left: prev.right
+          anchors.leftMargin: 20
+          !text: tr("+0%s", "%")
+          margin-top: 0
+          margin-right: 12
+
+      SmallSkillButton
+        id: transcendenceValue
+        margin-top: -1
+        tooltip-delayed: true
+        visible: false
+        SkillNameLabel
+          !text: tr('Transcenden')
+        SkillValueLabel
+          anchors.left: prev.right
+          anchors.leftMargin: 20
+          !text: tr("+0%s", "%")
+          margin-top: 0
+          margin-right: 12
+
+      SmallSkillButton
+        id: ruseValue
+        margin-top: -1
+        tooltip-delayed: true
+        visible: false
+        SkillNameLabel
+          !text: tr('Ruse')
+        SkillValueLabel
+          !text: tr("+0%s", "%")
+          margin-top: 0
+          margin-right: 12
+
       SmallSkillButton
         id: momentumValue
         margin-top: -1
@@ -833,24 +879,12 @@ MiniWindow
           margin-right: 12
 
       SmallSkillButton
-        id: transcendenceValue
+        id: onslaughtValue
         margin-top: -1
         tooltip-delayed: true
         visible: false
         SkillNameLabel
-          !text: tr('Transcend...')
-        SkillValueLabel
-          !text: tr("+0%s", "%")
-          margin-top: 0
-          margin-right: 12
-
-      SmallSkillButton
-        id: amplificationValue
-        margin-top: -1
-        tooltip-delayed: true
-        visible: false
-        SkillNameLabel
-          !text: tr('Amplification')
+          !text: tr('Onslaught')
         SkillValueLabel
           !text: tr("+0%s", "%")
           margin-top: 0
