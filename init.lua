@@ -13,9 +13,14 @@ Services = {
   status = ""
 }
 
--- Servers accept http login url, websocket login url or ip:port:version
+-- Direct connection to the TFS login server (no HTTP service required).
 Servers = {
-  LocalTestServ = "127.0.0.1:7171:860"
+  LocalTestServ = {
+    name = "LocalTestServ",
+    host = "127.0.0.1",
+    port = 7171,
+    version = 860
+  }
 }
 
 --Server = "ws://127.0.0.1:3000/"

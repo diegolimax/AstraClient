@@ -1,5 +1,6 @@
 build
-data/things
+data/things/*
+!data/things/860.rar
 pdbs
 CMakeCache.txt
 CMakeFiles

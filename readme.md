@@ -12,6 +12,24 @@ Read the feature guide before changing `g_game.enableFeature` or `g_game.disable
 - English: `docs/protocol-features-8.60.md`
 - PT-BR: `docs/protocol-features-8.60.pt-BR.md`
 
+## Game Assets
+
+Download the protocol 8.60 asset package:
+
+**[Download 860.rar](https://github.com/Mateuzkl/AstraClient/raw/refs/heads/main/data/things/860.rar)**
+
+The archive contains:
+
+```text
+860/Tibia.dat
+860/Tibia.otfi
+860/Tibia.spr
+```
+
+Extract it inside `data/things/`. The final files must be located under `data/things/860/`.
+
+SHA-256: `1857FA472F2BC28EF2E62A8B889C3D80380B7A7287B28EA4AAD10C6793537B19`
+
 ## Build
 
 ### Windows

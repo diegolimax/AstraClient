@@ -24,6 +24,7 @@
 #include "minimap.h"
 #include "tile.h"
 #include "game.h"
+#include "gameconfig.h"
 #include "spritemanager.h"
 
 #include <framework/graphics/image.h>
@@ -84,6 +85,7 @@ void MinimapBlock::updateTile(int x, int y, const MinimapTile& tile)
 
 void Minimap::init()
 {
+    m_tileBlocks.resize(g_gameConfig.getMapMaxZ() + 1);
 }
 
 void Minimap::terminate()
@@ -94,8 +96,8 @@ void Minimap::terminate()
 void Minimap::clean()
 {
     std::lock_guard<std::mutex> lock(m_lock);
-    for(int i=0;i<=Otc::MAX_Z;++i)
-        m_tileBlocks[i].clear();
+    for (auto& tileBlocks : m_tileBlocks)
+        tileBlocks.clear();
 }
 
 void Minimap::draw(const Rect& screenRect, const Position& mapCenter, float scale, const Color& color)
@@ -212,10 +214,15 @@ void Minimap::updateTile(const Position& pos, const TilePtr& tile)
 const MinimapTile& Minimap::getTile(const Position& pos)
 {
     static MinimapTile nulltile;
-    if(pos.z <= Otc::MAX_Z && hasBlock(pos)) {
-        MinimapBlock& block = getBlock(pos);
-        Point offsetPos = getBlockOffset(Point(pos.x, pos.y));
-        return block.getTile(pos.x - offsetPos.x, pos.y - offsetPos.y);
+    if(pos.z <= g_gameConfig.getMapMaxZ()) {
+        std::lock_guard<std::mutex> lock(m_lock);
+        if(hasBlock(pos)) {
+            MinimapBlock_ptr blockPtr = m_tileBlocks[pos.z][getBlockIndex(pos)];
+            if(blockPtr) {
+                Point offsetPos = getBlockOffset(Point(pos.x, pos.y));
+                return blockPtr->getTile(pos.x - offsetPos.x, pos.y - offsetPos.y);
+            }
+        }
     }
     return nulltile;
 }
@@ -224,7 +231,7 @@ std::pair<MinimapBlock_ptr, MinimapTile> Minimap::threadGetTile(const Position& 
     std::lock_guard<std::mutex> lock(m_lock);
     static MinimapTile nulltile;
     
-    if (pos.z <= Otc::MAX_Z && hasBlock(pos)) {
+    if (pos.z <= g_gameConfig.getMapMaxZ() && hasBlock(pos)) {
         MinimapBlock_ptr block = m_tileBlocks[pos.z][getBlockIndex(pos)];
         if (block) {
             Point offsetPos = getBlockOffset(Point(pos.x, pos.y));
@@ -367,13 +374,18 @@ bool Minimap::loadOtmm(const std::string& fileName)
             pos.z = fin->getU8();
 
             // end of file or file is corrupted
-            if(!pos.isValid() || pos.z >= Otc::MAX_Z+1)
+            if(!pos.isValid())
                 break;
 
-            MinimapBlock& block = getBlock(pos);
             ulong len = fin->getU16();
             ulong destLen = blockSize;
             fin->read(compressBuffer.data(), len);
+
+            // Skip blocks with Z beyond configured limit, but continue processing
+            if(pos.z > g_gameConfig.getMapMaxZ())
+                continue;
+
+            MinimapBlock& block = getBlock(pos);
             int ret = uncompress(decompressBuffer.data(), &destLen, compressBuffer.data(), len);
             if(ret != Z_OK || destLen != blockSize)
                 break;
@@ -426,7 +438,7 @@ void Minimap::saveOtmm(const std::string& fileName)
         std::vector<uchar> compressBuffer(compressBound(blockSize));
         const int COMPRESS_LEVEL = 3;
 
-        for(uint8_t z = 0; z <= Otc::MAX_Z; ++z) {
+        for (int z = 0; z <= g_gameConfig.getMapMaxZ(); ++z) {
             for(auto& it : m_tileBlocks[z]) {
                 int index = it.first;
                 MinimapBlock& block = *it.second;

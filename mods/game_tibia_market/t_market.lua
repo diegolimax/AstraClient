@@ -21,6 +21,13 @@ local mainMarket = nil
 local lastItemID = 0
 local lastItemTier = 0
 local currentActionType = 1
+local marketCatalogReady = false
+local marketCatalogBuilding = false
+local marketCatalogEvent = nil
+local marketCatalogGeneration = 0
+
+local MARKET_CATALOG_BATCH_SIZE = 20
+local MARKET_CATEGORY_BATCH_SIZE = 6
 
 local cache = {
 	SCROLL_MARKET_ITEMS = {
@@ -63,6 +70,43 @@ local sortButtons = {
 
 local enableCategories = { 17, 18, 19, 20, 21, 27, 32 }
 local enableClassification = {1, 3, 7, 8, 15, 17, 18, 19, 20, 21, 24, 27, 32 }
+
+local function cancelMarketCatalogBuild()
+	if marketCatalogEvent then
+		removeEvent(marketCatalogEvent)
+		marketCatalogEvent = nil
+	end
+
+	marketCatalogBuilding = false
+	marketCatalogGeneration = marketCatalogGeneration + 1
+end
+
+local function scheduleMarketCatalogStep(generation, callback)
+	marketCatalogEvent = scheduleEvent(function()
+		marketCatalogEvent = nil
+		if generation ~= marketCatalogGeneration or not marketWindow or marketWindow:isDestroyed() then
+			return
+		end
+
+		callback()
+	end, 1)
+end
+
+local function resetMarketCatalog()
+	cancelMarketCatalogBuild()
+	marketCatalogReady = false
+	marketItems = {}
+	categoryList = {}
+
+	if marketWindow and not marketWindow:isDestroyed() then
+		marketWindow.contentPanel.category:destroyChildren()
+	end
+end
+
+local function onMarketSessionChange()
+	resetMarketCatalog()
+	hide()
+end
 
 local function getDepotItemKey(itemId, tier)
 	return string.format("%d:%d", itemId or 0, tier or 0)
@@ -169,8 +213,8 @@ function init()
   mainMarket.createOfferSell:setChecked(true)
   connect(g_game, {
 	onUpdateResourceValue = onUpdateResourceValue,
-	onGameEnd = hide,
-	onGameStart = hide,
+	onGameEnd = onMarketSessionChange,
+	onGameStart = onMarketSessionChange,
 	onMarketEnter = onMarketEnter,
 	onMarketBrowse = onMarketBrowse,
 	onMarketDetail = onMarketDetail,
@@ -183,14 +227,16 @@ function init()
 end
 
 function terminate()
+	cancelMarketCatalogBuild()
+
   if terminateMarketProtocol then
     terminateMarketProtocol()
   end
 
-   disconnect(g_game, {
+	disconnect(g_game, {
 	  onUpdateResourceValue = onUpdateResourceValue,
-	  onGameStart = hide,
-	  onGameEnd = hide,
+	  onGameStart = onMarketSessionChange,
+	  onGameEnd = onMarketSessionChange,
 	  onMarketEnter = onMarketEnter,
 	  onMarketBrowse = onMarketBrowse,
 	  onMarketDetail = onMarketDetail,
@@ -222,8 +268,9 @@ function toggle()
 end
 
 function hide()
+	cancelMarketCatalogBuild()
+
 	local wasVisible = marketWindow:isVisible()
-	local benchmark = g_clock.millis()
 	local mainMarket = marketWindow.contentPanel:getChildById('mainMarket')
 	local detailsMarket = marketWindow.contentPanel:getChildById('detailsMarket')
 	local closeButton = marketWindow.contentPanel:getChildById('closeButton')
@@ -245,7 +292,6 @@ function hide()
 	end
   	lastSelectedItem = {}
 	modules.game_console.getConsole():focus()
-	consoleln("Market loaded in " .. (g_clock.millis() - benchmark) / 1000 .. " seconds.")
 end
 
 function show()
@@ -398,9 +444,9 @@ function onCoinBalance(coins, transferableCoins)
 	local coinTooltip = {}
 
 	setStringColor(coinTooltip, "Total Astra Coins: " .. comma_value(coins + transferableCoins), "#3f3f3f")
-	setStringColor(coinTooltip, " £", "#f7e6fe")
+	setStringColor(coinTooltip, " Â£", "#f7e6fe")
 	setStringColor(coinTooltip, "\nIncluded transferable Astra Coins: " .. comma_value(transferableCoins), "#3f3f3f")
-	setStringColor(coinTooltip, " ¢", "#f7e6fe")
+	setStringColor(coinTooltip, " Â¢", "#f7e6fe")
 
 	marketWindow.contentPanel.coinPanel.gold:setText(comma_value(transferableCoins))
 	marketWindow.contentPanel.coinPanel.gold:setTooltip(coinTooltip)
@@ -426,115 +472,9 @@ function onCoinBalance(coins, transferableCoins)
 	end
 end
 
-function configureList(serverItems)
-	marketItems = {}
-	for c = MarketCategory.First, MarketCategory.WeaponsAll do
-		marketItems[c] = {}
-	end
-
-	local addedItems = {}
-	local function addMarketItem(itemId, category, name)
-		itemId = tonumber(itemId)
-		if not itemId or addedItems[itemId] or itemId == 49870 or itemId == 14258 then
-			return
-		end
-
-		category = tonumber(category) or MarketCategory.Others
-		marketItems[category] = marketItems[category] or {}
-
-		local thingType = g_things.getThingType(itemId, ThingCategoryItem) or g_things.getThingType(itemId)
-		local item = Item.create(itemId)
-		if not thingType or not item then
-			return
-		end
-
-		local marketData = copyMarketData(thingType, itemId, category, name)
-		item:setId(marketData.showAs)
-		table.insert(marketItems[category], { displayItem = item, thingType = thingType, marketData = marketData })
-		addedItems[itemId] = true
-	end
-
-	for _, entry in ipairs(serverItems or {}) do
-		if type(entry) == 'table' then
-			addMarketItem(entry.itemId or entry[1], entry.category, entry.name)
-		end
-	end
-
-	local types = g_things.findThingTypeByAttr(ThingAttrMarket, 0)
-	for _, itemType in pairs(types or {}) do
-		local itemId = itemType:getId()
-		if not addedItems[itemId] then
-			local marketData = itemType:getMarketData()
-			if not table.empty(marketData) then
-				addMarketItem(itemId, marketData.category, marketData.name)
-			end
-		end
-	end
-
-	-- Weapons all category
-	for c = MarketCategory.Ammunition, MarketCategory.WandsRods do
-		for _, data in pairs(marketItems[c] or {}) do
-			table.insert(marketItems[MarketCategory.WeaponsAll], data)
-		end
-	end
-
-	for _, data in pairs(marketItems[MarketCategory.FistWeapons] or {}) do
-		table.insert(marketItems[MarketCategory.WeaponsAll], data)
-	end
-
-	local function compareMarketItemsByNameCaseInsensitive(a, b)
-		local nameA = string.lower(a.marketData.name)
-		local nameB = string.lower(b.marketData.name)
-		return nameA < nameB
-	end
-
-	for c = MarketCategory.First, MarketCategory.WeaponsAll do
-		if marketItems[c] then
-			table.sort(marketItems[c], compareMarketItemsByNameCaseInsensitive)
-		end
-	end
-
-	categoryList = {}
-	for c = MarketCategory.First, MarketCategory.Last do
-		if marketItems[c] and #marketItems[c] > 0 then
-			table.insert(categoryList, {c, getMarketCategoryName(c)})
-		end
-	end
-
-	if marketItems[MarketCategory.WeaponsAll] and #marketItems[MarketCategory.WeaponsAll] > 0 then
-		table.insert(categoryList, {MarketCategory.WeaponsAll, 'Weapons: All'})
-	end
-
-	table.sort(categoryList, function(a, b) return a[2] < b[2] end)
-end
-
--- Main Window
-function onMarketEnter(offerCount, items)
-	configureList(items)
-	depotLockerItems = items
-
-	marketWindow.contentPanel.category:destroyChildren()
-
-	local colorCount = 0
-	for _, pair in pairs(categoryList) do
-		local widget = g_ui.createWidget('CategoryItemListLabel', marketWindow.contentPanel.category)
-		local color = colorCount % 2 == 0 and '#414141' or '#484848'
-		widget:setActionId(pair[1])
-    	widget.color = color
-		widget:setId(pair[2])
-		widget:setText(pair[2])
-		widget:setBackgroundColor(color)
-		colorCount = colorCount + 1
-	end
-
-	local firstWidget = marketWindow.contentPanel.category:getFirstChild()
-	if firstWidget then
-		marketWindow.contentPanel.category:moveChildToIndex(firstWidget, 2)
-	end
-
-	local lastWidget = marketWindow.contentPanel.category:getChildById('Weapons: All')
-	if lastWidget then
-		marketWindow.contentPanel.category:moveChildToIndex(lastWidget, marketWindow.contentPanel.category:getChildCount())
+local function finishMarketEnter()
+	if not marketWindow or marketWindow:isDestroyed() then
+		return
 	end
 
 	marketWindow.contentPanel.classFilter:clearOptions()
@@ -552,41 +492,212 @@ function onMarketEnter(offerCount, items)
 	marketWindow.contentPanel.category.onChildFocusChange = function(self, selected) onSelectChildCategory(self, selected) end
 end
 
+local function renderMarketCategories(generation, onComplete)
+	local categoryPanel = marketWindow.contentPanel.category
+	categoryPanel:destroyChildren()
+
+	local nextIndex = 1
+	local function renderBatch()
+		local batchEnd = math.min(nextIndex + MARKET_CATEGORY_BATCH_SIZE - 1, #categoryList)
+		for index = nextIndex, batchEnd do
+			local pair = categoryList[index]
+			local widget = g_ui.createWidget('CategoryItemListLabel', categoryPanel)
+			local color = (index - 1) % 2 == 0 and '#414141' or '#484848'
+			widget:setActionId(pair[1])
+			widget.color = color
+			widget:setId(pair[2])
+			widget:setText(pair[2])
+			widget:setBackgroundColor(color)
+		end
+
+		nextIndex = batchEnd + 1
+		if nextIndex <= #categoryList then
+			scheduleMarketCatalogStep(generation, renderBatch)
+			return
+		end
+
+		local firstWidget = categoryPanel:getFirstChild()
+		if firstWidget then
+			categoryPanel:moveChildToIndex(firstWidget, 2)
+		end
+
+		local lastWidget = categoryPanel:getChildById('Weapons: All')
+		if lastWidget then
+			categoryPanel:moveChildToIndex(lastWidget, categoryPanel:getChildCount())
+		end
+
+		marketCatalogBuilding = false
+		marketCatalogReady = true
+		onComplete()
+	end
+
+	scheduleMarketCatalogStep(generation, renderBatch)
+end
+
+function configureList(serverItems, onComplete)
+	cancelMarketCatalogBuild()
+	marketCatalogBuilding = true
+	local generation = marketCatalogGeneration
+
+	marketItems = {}
+	for category = MarketCategory.First, MarketCategory.WeaponsAll do
+		marketItems[category] = {}
+	end
+
+	local tasks = {}
+	local addedItems = {}
+	local serverCatalog = serverItems or {}
+	local serverIndex = 1
+	local clientCatalog = nil
+	local clientIndex = 1
+	local taskIndex = 1
+	local usingClientCatalog = false
+	local collectClientBatch
+
+	local function beginClientCatalog()
+		usingClientCatalog = true
+		clientCatalog = g_things.findThingTypeByAttr(ThingAttrMarket, 0) or {}
+		clientIndex = 1
+		tasks = {}
+		taskIndex = 1
+		scheduleMarketCatalogStep(generation, collectClientBatch)
+	end
+
+	local function finishCatalog()
+		categoryList = {}
+		for category = MarketCategory.First, MarketCategory.Last do
+			if marketItems[category] and #marketItems[category] > 0 then
+				categoryList[#categoryList + 1] = {category, getMarketCategoryName(category)}
+			end
+		end
+
+		if #marketItems[MarketCategory.WeaponsAll] > 0 then
+			categoryList[#categoryList + 1] = {MarketCategory.WeaponsAll, 'Weapons: All'}
+		end
+		table.sort(categoryList, function(a, b) return a[2] < b[2] end)
+		renderMarketCategories(generation, onComplete)
+	end
+
+	local function sortCategory(category)
+		if not usingClientCatalog or category > MarketCategory.WeaponsAll then
+			scheduleMarketCatalogStep(generation, finishCatalog)
+			return
+		end
+
+		local entries = marketItems[category] or {}
+		if #entries > 1 then
+			table.sort(entries, function(a, b)
+				if a.sortName == b.sortName then
+					return a.thingType:getId() < b.thingType:getId()
+				end
+				return a.sortName < b.sortName
+			end)
+		end
+		scheduleMarketCatalogStep(generation, function() sortCategory(category + 1) end)
+	end
+
+	local function processBatch()
+		local batchEnd = math.min(taskIndex + MARKET_CATALOG_BATCH_SIZE - 1, #tasks)
+		for index = taskIndex, batchEnd do
+			local task = tasks[index]
+			local itemId = tonumber(task.itemId)
+			if itemId and not addedItems[itemId] and itemId ~= 49870 and itemId ~= 14258 then
+				local thingType = task.thingType or g_things.getThingType(itemId, ThingCategoryItem) or g_things.getThingType(itemId)
+				if thingType then
+					local category = tonumber(task.category) or MarketCategory.Others
+					marketItems[category] = marketItems[category] or {}
+					local data = {
+						thingType = thingType,
+						marketData = copyMarketData(thingType, itemId, category, task.name)
+					}
+					data.sortName = string.lower(tostring(data.marketData.name or ''))
+					marketItems[category][#marketItems[category] + 1] = data
+					if (category >= MarketCategory.Ammunition and category <= MarketCategory.WandsRods) or
+						category == MarketCategory.FistWeapons then
+						marketItems[MarketCategory.WeaponsAll][#marketItems[MarketCategory.WeaponsAll] + 1] = data
+					end
+					addedItems[itemId] = true
+				end
+			end
+		end
+
+		taskIndex = batchEnd + 1
+		if taskIndex <= #tasks then
+			scheduleMarketCatalogStep(generation, processBatch)
+		elseif not usingClientCatalog and next(addedItems) == nil then
+			beginClientCatalog()
+		elseif usingClientCatalog then
+			scheduleMarketCatalogStep(generation, function() sortCategory(MarketCategory.First) end)
+		else
+			scheduleMarketCatalogStep(generation, finishCatalog)
+		end
+	end
+
+	collectClientBatch = function()
+		local batchEnd = math.min(clientIndex + MARKET_CATALOG_BATCH_SIZE - 1, #clientCatalog)
+		for index = clientIndex, batchEnd do
+			local itemType = clientCatalog[index]
+			local marketData = itemType:getMarketData()
+			if not table.empty(marketData) then
+				tasks[#tasks + 1] = {
+					itemId = itemType:getId(),
+					category = marketData.category,
+					name = marketData.name,
+					thingType = itemType
+				}
+			end
+		end
+
+		clientIndex = batchEnd + 1
+		if clientIndex <= #clientCatalog then
+			scheduleMarketCatalogStep(generation, collectClientBatch)
+		else
+			scheduleMarketCatalogStep(generation, processBatch)
+		end
+	end
+
+	local function collectServerBatch()
+		local batchEnd = math.min(serverIndex + MARKET_CATALOG_BATCH_SIZE - 1, #serverCatalog)
+		for index = serverIndex, batchEnd do
+			local entry = serverCatalog[index]
+			if type(entry) == 'table' and (tonumber(entry[2]) or 0) == 0 then
+				tasks[#tasks + 1] = {
+					itemId = entry.itemId or entry[1],
+					category = entry.category,
+					name = entry.name
+				}
+			end
+		end
+
+		serverIndex = batchEnd + 1
+		if serverIndex <= #serverCatalog then
+			scheduleMarketCatalogStep(generation, collectServerBatch)
+		elseif #tasks > 0 then
+			scheduleMarketCatalogStep(generation, processBatch)
+		else
+			beginClientCatalog()
+		end
+	end
+
+	scheduleMarketCatalogStep(generation, collectServerBatch)
+end
+
+-- Main Window
+function onMarketEnter(offerCount, items)
+	depotLockerItems = items
+
+	if marketCatalogReady then
+		finishMarketEnter()
+	elseif not marketCatalogBuilding then
+		configureList(items, finishMarketEnter)
+	end
+end
+
 function onMarketBrowse(itemID, tier, buyList, sellList)
 	if table.empty(lastSelectedItem) then return end
 
-	if lastItemID == itemID and lastItemTier == tier then
-		if #buyList == 1 then
-			local updateItem = buyList[1]
-			for i, data in pairs(buyOffers) do
-				if data.counter == updateItem.counter and data.timestamp == updateItem.timestamp then
-					if updateItem.amount == 0 then
-						table.remove(buyOffers, i)
-					else
-						buyOffers[i] = updateItem
-					end
-					break
-				end
-			end
-		end
-
-		if #sellList == 1 then
-			local updateItem = sellList[1]
-			for i, data in pairs(sellOffers) do
-				if data.counter == updateItem.counter and data.timestamp == updateItem.timestamp then
-					if updateItem.amount == 0 then
-						table.remove(sellOffers, i)
-					else
-						sellOffers[i] = updateItem
-					end
-					break
-				end
-			end
-		end
-	else
-		buyOffers = buyList
-		sellOffers = sellList
-	end
+	buyOffers = buyList
+	sellOffers = sellList
 
 	cache.SCROLL_BUY_OFFERS.listFit = math.floor(mainMarket.buyOffersList:getHeight() / 16) - 1
 	cache.SCROLL_BUY_OFFERS.listMin = 0
