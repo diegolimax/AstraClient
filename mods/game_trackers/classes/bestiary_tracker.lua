@@ -102,22 +102,13 @@ end
 function BestiaryTracker.updateWidgetShowTracker(data, monsterList)
 	local creature = getMonster(data, monsterList)
 	if not creature then
-		-- Fallback: tenta a lista estatica do client; se ainda assim nao houver
-		-- dados, cria o widget mesmo assim (sem outfit) para o monstro NUNCA
-		-- sumir da lista do tracker.
-		local staticList = g_things.getMonsterList()
-		creature = staticList and staticList[data[1]] or nil
-		if not creature then
-			g_logger.warning("[BestiaryTracker]: failed to get outfit for Race " .. data[1])
-			creature = {"Race " .. tostring(data[1]), 0, 0, 0, 0, 0, 0, 0}
-		end
+		g_logger.warning("[BestiaryTracker]: failed to get outfit for Race " .. data[1])
+		return false
 	end
 
 	local widget = g_ui.createWidget('BestiPanel', bestiaryTrackerWindow.contentsPanel)
-	pcall(function()
-		widget.creature:setOutfit({type = creature[2], auxType = creature[3], head = creature[4], body = creature[5], legs = creature[6], feet = creature[7], addons = creature[8]})
-		widget.creature:setAnimate(true)
-	end)
+	widget.creature:setOutfit({type = creature[2], auxType = creature[3], head = creature[4], body = creature[5], legs = creature[6], feet = creature[7], addons = creature[8]})
+	widget.creature:setAnimate(true)
 
 	local bossName = string.capitalize(creature[1])
 	widget.bossName:setText(short_text(bossName, 16))
@@ -221,9 +212,6 @@ function BestiaryTracker.updateTrackerList()
 		local widget = bestiaryTrackerWindow.contentsPanel:getChildById(data[1])
 		BestiaryTracker.updateWidgetTracker(data, widget)
 	end
-
-	-- Reordenacao pode ter mexido nas posicoes; forca o re-layout (preserva o scroll)
-	Trackers.refreshTrackerLayout(bestiaryTrackerWindow, false)
 end
 
 function BestiaryTracker.showTrackerData(update)
@@ -279,11 +267,6 @@ function BestiaryTracker.showTrackerData(update)
 		end
 	end
 
-<<<<<<< HEAD
-	-- Widgets recriados com a janela aberta: forca o re-layout e reseta o
-	-- scroll para a lista nunca sumir visualmente ate um minimize/maximize.
-	Trackers.refreshTrackerLayout(bestiaryTrackerWindow, true)
-=======
 	if not reuseWidgets then
 		bestiaryTrackerWindow.contentsPanel:destroyChildren()
 	end
@@ -314,7 +297,6 @@ function BestiaryTracker.showTrackerData(update)
 	end
 
 	scheduleRender(generation, renderBatch)
->>>>>>> eeede3effe9c2b6665e21dde47bb30822dcdcd85
 end
 
 function BestiaryTracker.onRedirect(widget, isMonster)
@@ -324,14 +306,6 @@ function BestiaryTracker.onRedirect(widget, isMonster)
     g_game.bestiaryMonsterData(tonumber(widget:getId()))
     scheduleEvent(function() modules.game_cyclopedia.Bestiary.setupBackTrackerButton() end, 300)
 	end
-
-	-- Reconstroi a lista do tracker apos o clique para impedir que o monstro
-	-- clicado desapareca da janela (mesmo efeito de fechar/reabrir o tracker).
-	scheduleEvent(function()
-		if bestiaryTrackerWindow and bestiaryTrackerWindow:isVisible() then
-			BestiaryTracker.showTrackerData(true)
-		end
-	end, 500)
 end
 
 function BestiaryTracker.onSideButtonRedirect()

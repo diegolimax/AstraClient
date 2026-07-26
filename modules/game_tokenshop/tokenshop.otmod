@@ -1,0 +1,9 @@
+Module
+  name: game_tokenshop
+  description: Tokens Shop (opcode 0x57 / 0x56)
+  author: Diego
+  sandboxed: true
+  autoload: true
+  scripts: [ tokenshop ]
+  @onLoad: init()
+  @onUnload: terminate()

@@ -1,0 +1,10 @@
+Module
+  name: game_collect_all
+  description: Envia o pedido de Collect All do reward chest para o servidor
+  author: Diego
+  sandboxed: true
+  autoload: true
+  autoload-priority: 1000
+  scripts: [ collectall ]
+  @onLoad: init()
+  @onUnload: terminate()

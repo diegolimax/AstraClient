@@ -15,8 +15,8 @@ Services = {
 
 -- Direct connection to the TFS login server (no HTTP service required).
 Servers = {
-  LocalTestServ = {
-    name = "LocalTestServ",
+  Asura = {
+    name = "AsuraOT",
     host = "127.0.0.1",
     port = 7171,
     version = 860

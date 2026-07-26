@@ -17,6 +17,57 @@ end
 
 local targetMaxMargin = 142
 
+-- Formata o count igual ao UIItem::cacheCountText do C++ (999 -> "999", 1500 -> "2k").
+local function formatSupplyCount(count)
+	if count >= 1000 then
+		return string.format("%.0fk", count / 1000)
+	end
+	return tostring(count)
+end
+
+-- Garante o label do count mesmo que o estilo LootItem tenha sido sobrescrito.
+local function ensureCountLabel(widget)
+	local label = widget:getChildById('countLabel')
+	if label then
+		return label
+	end
+
+	label = g_ui.createWidget('Label', widget)
+	label:setId('countLabel')
+	label:setPhantom(true)
+	label:setFocusable(false)
+	label:setTextAutoResize(true)
+	label:setFont('verdana-11px-rounded')
+	label:setColor('#ffffff')
+	label:addAnchor(AnchorBottom, 'parent', AnchorBottom)
+	label:addAnchor(AnchorRight, 'parent', AnchorRight)
+	label:setMarginRight(2)
+	label:setMarginBottom(-2)
+	return label
+end
+
+-- Usa o Label filho do LootItem (show-count: false), igual ao Loot Analyser.
+local function applySupplyCount(widget, count)
+	if not widget then
+		return
+	end
+
+	count = tonumber(count) or 0
+	widget:setItemCount(count)
+
+	local label = ensureCountLabel(widget)
+	if not label then
+		return
+	end
+
+	if count >= 1 then
+		label:setText(formatSupplyCount(count))
+		label:setVisible(true)
+	else
+		label:setVisible(false)
+	end
+end
+
 function SupplyAnalyser:create()
 	SupplyAnalyser.launchTime = 0
 	SupplyAnalyser.session = 0
@@ -186,10 +237,10 @@ function SupplyAnalyser:updateWidget(itemId)
 	end
 
 	local count = SupplyAnalyser:getItemCount(itemId)
-	widget:setItemCount(count)
+	applySupplyCount(widget, count)
 
 	local value = getCurrentPrice(itemPtr)
-	widget:setTooltip(string.format("%s (Value: %sgp, Sum: %sgp)", getItemServerName(itemId), formatMoney(value, ","), formatMoney(value * count, ",")))
+	widget:setTooltip(string.format("%s: %d\n(Value: %sgp, Sum: %sgp)", getItemServerName(itemId), count, formatMoney(value, ","), formatMoney(value * count, ",")))
 end
 
 function SupplyAnalyser:decreaseWidget(itemId)
@@ -204,8 +255,8 @@ function SupplyAnalyser:decreaseWidget(itemId)
 
 	local itemPtr = Item.create(itemId, 1)
 	local value = getCurrentPrice(itemPtr)
-	widget:setItemCount(count)
-	widget:setTooltip(string.format("%s (Value: %sgp, Sum: %sgp)", getItemServerName(itemId), formatMoney(value, ","), formatMoney(value * count, ",")))
+	applySupplyCount(widget, count)
+	widget:setTooltip(string.format("%s: %d\n(Value: %sgp, Sum: %sgp)", getItemServerName(itemId), count, formatMoney(value, ","), formatMoney(value * count, ",")))
 end
 
 function SupplyAnalyser:addSuppliesItems(itemId)

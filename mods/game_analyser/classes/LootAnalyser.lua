@@ -20,6 +20,61 @@ end
 
 local targetMaxMargin = 142
 
+-- Formata o count igual ao UIItem::cacheCountText do C++ (999 -> "999", 1500 -> "2k").
+local function formatLootCount(count)
+	if count >= 1000 then
+		return string.format("%.0fk", count / 1000)
+	end
+	return tostring(count)
+end
+
+-- Garante o label do count mesmo que o estilo LootItem tenha sido sobrescrito
+-- por outro modulo carregado depois.
+local function ensureCountLabel(widget)
+	local label = widget:getChildById('countLabel')
+	if label then
+		return label
+	end
+
+	label = g_ui.createWidget('Label', widget)
+	label:setId('countLabel')
+	label:setPhantom(true)
+	label:setFocusable(false)
+	label:setTextAutoResize(true)
+	label:setFont('verdana-11px-rounded')
+	label:setColor('#ffffff')
+	label:addAnchor(AnchorBottom, 'parent', AnchorBottom)
+	label:addAnchor(AnchorRight, 'parent', AnchorRight)
+	label:setMarginRight(2)
+	label:setMarginBottom(-2)
+	return label
+end
+
+-- O count nativo do UIItem so aparece em itens stackable/chargeable/quiver, entao
+-- o LootItem usa show-count: false + um Label filho (mesma abordagem do stash).
+local function applyLootCount(widget, count)
+	if not widget then
+		return
+	end
+
+	count = tonumber(count) or 0
+
+	-- mantido para o sprite da pilha continuar mudando nos itens stackaveis
+	widget:setItemCount(count)
+
+	local label = ensureCountLabel(widget)
+	if not label then
+		return
+	end
+
+	if count >= 1 then
+		label:setText(formatLootCount(count))
+		label:setVisible(true)
+	else
+		label:setVisible(false)
+	end
+end
+
 
 function LootAnalyser:create()
 	LootAnalyser:cancelPendingWindowUpdate()
@@ -180,8 +235,8 @@ function LootAnalyser:updateWindow(updateScroll, ignoreVisible)
 				widget:setId(itemId)
 				widget:setItemId(itemId)
 			end
-			widget:setItemCount(info.count)
-			widget:setTooltip(string.format("%s (Value: %dgp, Sum: %dgp)", string.capitalize(info.name), info.basePrice, info.basePrice * info.count))
+			applyLootCount(widget, info.count)
+			widget:setTooltip(string.format("%s: %d\n(Value: %dgp, Sum: %dgp)", string.capitalize(info.name), info.count, info.basePrice, info.basePrice * info.count))
 			numOfItems = numOfItems + 1
 			if numOfItems == 4 then
 				numOfItems = 0

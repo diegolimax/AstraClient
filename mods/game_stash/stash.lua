@@ -389,8 +389,31 @@ function stowAll()
   -- when server sends the updated stash data after stow-all completes
 end
 
+-- Wrapper publico chamado pelo stash.otui (@onTextChange / @onOptionChange).
+-- Durante o displayUI os ComboBox disparam onOptionChange antes do showStash(),
+-- entao precisa sair fora se as referencias ainda nao existirem.
+function requestStashRefresh(searchText)
+  if not gameStashWindown or not itemsPanel then
+    return
+  end
+
+  if not stashOption or not sellerOption or not otherOption then
+    return
+  end
+
+  if searchText == nil and gameStashWindown.searchText then
+    searchText = gameStashWindown.searchText:getText()
+  end
+
+  refreshStashItems(searchText)
+end
+
 function refreshStashItems(searchText)
   if not itemsPanel then
+    return true
+  end
+
+  if not stashOption or not sellerOption or not otherOption then
     return true
   end
 

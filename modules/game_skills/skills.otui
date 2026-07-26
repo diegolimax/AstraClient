@@ -522,7 +522,7 @@ MiniWindow
           margin-right: 12
           text-auto-resize: false
           anchors.left: prev.right
-          anchors.leftMargin: 10
+          margin-left: 10
           !text: tr("+0%s", "%")
 
       SmallSkillButton
@@ -835,7 +835,7 @@ MiniWindow
           !text: tr('Amplification')
         SkillValueLabel
           anchors.left: prev.right
-          anchors.leftMargin: 20
+          margin-left: 20
           !text: tr("+0%s", "%")
           margin-top: 0
           margin-right: 12
@@ -849,7 +849,7 @@ MiniWindow
           !text: tr('Transcenden')
         SkillValueLabel
           anchors.left: prev.right
-          anchors.leftMargin: 20
+          margin-left: 20
           !text: tr("+0%s", "%")
           margin-top: 0
           margin-right: 12

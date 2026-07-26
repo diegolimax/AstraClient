@@ -1,0 +1,302 @@
+DungeonListButton < UIButton
+  height: 46
+  image-source: /images/ui/2pixel_up_frame_borderimage
+  image-border: 2
+  focusable: true
+
+  UICreature
+    id: outfit
+    size: 40 40
+    anchors.verticalCenter: parent.verticalCenter
+    anchors.left: parent.left
+    margin-left: 4
+    phantom: true
+
+  Label
+    id: title
+    anchors.top: parent.top
+    anchors.left: outfit.right
+    anchors.right: parent.right
+    margin-top: 6
+    margin-left: 6
+    font: $var-cip-main-font
+    color: $var-text-cip-color-white
+    text-align: left
+
+  Label
+    id: subtitle
+    anchors.top: title.bottom
+    anchors.left: outfit.right
+    anchors.right: parent.right
+    margin-left: 6
+    font: $var-cip-main-font
+    color: $var-text-cip-color
+    text-align: left
+
+  Label
+    id: doneMark
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 5
+    margin-right: 6
+    !text: tr('DONE')
+    font: $var-cip-main-font
+    color: #d40d06
+    visible: false
+    phantom: true
+
+DungeonLootSlot < UIWidget
+  size: 76 78
+  image-source: /images/ui/2pixel_up_frame_borderimage
+  image-border: 2
+
+  UIItem
+    id: item
+    size: 34 34
+    anchors.top: parent.top
+    anchors.horizontalCenter: parent.horizontalCenter
+    margin-top: 4
+    virtual: true
+    phantom: true
+
+  Label
+    id: caption
+    anchors.top: item.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-top: 2
+    margin-left: 2
+    margin-right: 2
+    margin-bottom: 2
+    text-align: top
+    text-wrap: true
+    font: $var-cip-main-font
+    phantom: true
+
+DungeonInfoRow < Panel
+  height: 18
+
+  Label
+    id: rowLabel
+    width: 130
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    font: $var-cip-main-font
+    color: $var-text-cip-color
+
+  Label
+    id: rowValue
+    anchors.left: rowLabel.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    font: $var-cip-main-font
+    color: $var-text-cip-color-white
+    text-align: right
+
+NewMainWindow
+  id: dungeonWindow
+  !text: tr('Dungeons')
+  size: 860 620
+  @onEscape: modules.game_dungeon.hide()
+
+  Panel
+    id: leftColumn
+    width: 230
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.bottom: bottomSep.top
+    margin-top: 12
+    margin-left: 12
+    margin-bottom: 10
+    image-source: /images/ui/2pixel_up_frame_borderimage
+    image-border: 2
+
+    TextList
+      id: dungeonList
+      anchors.fill: parent
+      margin: 4
+      vertical-scrollbar: dungeonListScroll
+      layout:
+        type: verticalBox
+        spacing: 3
+
+    VerticalScrollBar
+      id: dungeonListScroll
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      step: 24
+      pixels-scroll: true
+
+  Panel
+    id: rightColumn
+    anchors.top: parent.top
+    anchors.left: leftColumn.right
+    anchors.right: parent.right
+    anchors.bottom: bottomSep.top
+    margin-top: 12
+    margin-left: 8
+    margin-right: 12
+    margin-bottom: 10
+
+    Panel
+      id: headerPanel
+      height: 150
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      image-source: /images/ui/2pixel_up_frame_borderimage
+      image-border: 2
+
+      UICreature
+        id: bossOutfit
+        size: 70 70
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: parent.left
+        margin-left: 14
+        phantom: true
+
+      Label
+        id: bossName
+        anchors.top: parent.top
+        anchors.left: bossOutfit.right
+        anchors.right: parent.right
+        margin-top: 10
+        margin-left: 12
+        margin-right: 10
+        font: $var-cip-main-font
+        color: $var-text-cip-color-white
+
+      Panel
+        id: infoRows
+        anchors.top: bossName.bottom
+        anchors.left: bossOutfit.right
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        margin-left: 12
+        margin-right: 10
+        margin-top: 4
+        margin-bottom: 6
+        layout:
+          type: verticalBox
+          spacing: 1
+
+        DungeonInfoRow
+          id: rowLevel
+        DungeonInfoRow
+          id: rowTime
+        DungeonInfoRow
+          id: rowKills
+        DungeonInfoRow
+          id: rowStatus
+        DungeonInfoRow
+          id: rowCharges
+        DungeonInfoRow
+          id: rowCooldown
+
+    Label
+      id: bossLootTitle
+      anchors.top: headerPanel.bottom
+      anchors.left: parent.left
+      margin-top: 8
+      !text: tr('Boss Loot')
+      font: $var-cip-main-font
+      color: $var-text-cip-color-white
+
+    ScrollablePanel
+      id: bossLootPanel
+      height: 190
+      anchors.top: bossLootTitle.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 4
+      padding: 4
+      image-source: /images/ui/2pixel_up_frame_borderimage
+      image-border: 2
+      vertical-scrollbar: bossLootScroll
+      layout:
+        type: grid
+        cell-size: 76 78
+        cell-spacing: 3
+        flow: true
+
+    VerticalScrollBar
+      id: bossLootScroll
+      anchors.top: bossLootPanel.top
+      anchors.bottom: bossLootPanel.bottom
+      anchors.right: bossLootPanel.right
+      step: 30
+      pixels-scroll: true
+
+    Label
+      id: randomLootTitle
+      anchors.top: bossLootPanel.bottom
+      anchors.left: parent.left
+      margin-top: 8
+      !text: tr('Dungeon Loot')
+      font: $var-cip-main-font
+      color: $var-text-cip-color-white
+
+    ScrollablePanel
+      id: randomLootPanel
+      anchors.top: randomLootTitle.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: enterSoloButton.top
+      margin-top: 4
+      margin-bottom: 8
+      padding: 4
+      image-source: /images/ui/2pixel_up_frame_borderimage
+      image-border: 2
+      layout:
+        type: grid
+        cell-size: 76 78
+        cell-spacing: 3
+        flow: true
+
+    Label
+      id: statusLabel
+      anchors.left: parent.left
+      anchors.right: enterSoloButton.left
+      anchors.verticalCenter: enterSoloButton.verticalCenter
+      margin-right: 8
+      font: $var-cip-main-font
+      color: $var-text-cip-color
+      text-align: left
+
+    Button
+      id: enterSoloButton
+      width: 150
+      anchors.right: enterPartyButton.left
+      anchors.bottom: parent.bottom
+      margin-right: 6
+      !text: tr('Enter Dungeon Solo')
+      enabled: false
+      @onClick: modules.game_dungeon.onEnterClicked()
+
+    Button
+      id: enterPartyButton
+      width: 150
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      !text: tr('Enter Dungeon Party')
+      enabled: false
+      @onClick: modules.game_dungeon.onEnterPartyClicked()
+
+  HorizontalSeparator
+    id: bottomSep
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: next.top
+    margin-left: 12
+    margin-right: 12
+    margin-bottom: 10
+
+  CloseButton
+    id: closeButton
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-bottom: 12
+    margin-right: 12
+    @onClick: modules.game_dungeon.hide()

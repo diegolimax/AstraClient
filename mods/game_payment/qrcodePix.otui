@@ -1,0 +1,49 @@
+MainWindow
+  id: QrWindow
+  !text: tr('Escaneie o codigo abaixo!')
+  size: 220 280
+  @onEscape: modules.game_payment.onCancelPix()
+
+  UIButton
+    id: qrCode
+    size: 170 170
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: parent.top
+    margin-top: 15
+    opacity: 1.0
+    text-wrap: true
+    text-align: center
+    @onClick: modules.game_payment.copyPixCode()
+    $hover !disabled:
+      !tooltip: tr('Clique para copiar o codigo Pix (copia e cola).')
+
+  Button
+    id: copyButton
+    size: 170 25
+    !text: tr('Copiar codigo Pix')
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: qrCode.bottom
+    margin-top: 10
+    @onClick: modules.game_payment.copyPixCode()
+
+  UIWidget
+    id: Loading
+    size: 32 32
+    image-source: imagens/loading
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: copyButton.bottom
+    margin-top: 8
+    visible: false
+
+  UIButton
+    id: cancelButton
+    image-source: imagens/exit
+    size: 16 16
+    anchors.right: parent.right
+    anchors.top: parent.top
+    margin-top: -2
+    margin-right: 10
+    @onClick: modules.game_payment.onCancelPix()
+
+    $hover:
+      image-source: imagens/exit_onhover

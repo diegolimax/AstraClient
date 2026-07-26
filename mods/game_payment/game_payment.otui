@@ -1,0 +1,99 @@
+MainWindow
+  id: paymentWindow
+  size: 300 400
+  !text: tr('Formas de pagamento')
+  @onEscape: modules.game_payment.cancelDonate()
+
+  UIWindow
+    id: paymentImage
+    size: 80 80
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: parent.top
+    margin-top: 10
+    draggable: false
+
+  MenuLabel
+    id: valorLabel
+    !text: tr('Valor (R$):')
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: paymentImage.bottom
+    margin-top: 15
+    color: #00db0c
+
+  TextEdit
+    id: valorInput
+    size: 100 25
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: valorLabel.bottom
+    margin-top: 1
+    text: 1
+    numeric: true
+    maximum-length: 6
+    text-align: center
+
+  MenuLabel
+    id: bonusLabel
+    text: 
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: valorInput.bottom
+    margin-top: 5
+    color: #ffd700
+
+  MenuLabel
+    id: paymentMethodLabel
+    !text: tr('Escolha o metodo de pagamento:')
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: bonusLabel.bottom
+    margin-top: 10
+    color: #00db0c
+
+  ComboBox
+    id: paymentMethodComboBox
+    size: 200 25
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: paymentMethodLabel.bottom
+    margin-top: 5
+
+  MenuLabel
+    id: currencyLabel
+    !text: tr('Escolha a moeda:')
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: paymentMethodComboBox.bottom
+    margin-top: 15
+    color: #00db0c
+
+  ComboBox
+    id: currencyComboBox
+    size: 200 25
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: currencyLabel.bottom
+    margin-top: 5
+
+  Button
+    id: cancelarButton
+    size: 100 30
+    !text: tr('CANCELAR')
+    anchors.left: parent.left
+    anchors.top: currencyComboBox.bottom
+    margin-top: 20
+    margin-left: 20
+    @onClick: modules.game_payment.cancelDonate()
+
+  Button
+    id: confirmarButton
+    size: 100 30
+    !text: tr('CONFIRMAR')
+    anchors.right: parent.right
+    anchors.top: currencyComboBox.bottom
+    margin-top: 20
+    margin-right: 20
+    @onClick: modules.game_payment.sendDonate()
+
+  Button
+    id: historyButton
+    size: 100 30
+    !text: tr('HISTORICO')
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: cancelarButton.bottom
+    margin-top: 15
+    @onClick: modules.game_payment.fetchTransactionHistory()

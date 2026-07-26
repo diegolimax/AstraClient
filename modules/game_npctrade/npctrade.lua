@@ -56,6 +56,89 @@ cancelNextRelease = nil
 sellAllWithDelayEvent = nil
 local npcWindowLayoutRefreshScheduled = false
 
+-- Venda em massa faz o servidor remover muitos itens de uma vez. Se o gold pouch /
+-- loot pouch estiver aberto, cada remocao gera um update de container e o client
+-- redesenha a bolsa item por item, o que trava o personagem. Fechar as bolsas antes
+-- de enviar a venda elimina esses redraws.
+
+-- Ids das bolsas do servidor. Preencher aqui torna a deteccao exata; se ficar vazio,
+-- a deteccao cai para o nome do container.
+local POUCH_ITEM_IDS = { 26377, 23721 }
+
+-- Deteccao por nome (minusculo, busca literal). Ajuste se seus containers tiverem
+-- outro nome no servidor.
+local POUCH_NAME_PATTERNS = { "pouch", "bolsa" }
+
+-- Coloque em true para logar no otclientv8.log o que a funcao encontrou.
+local DEBUG_POUCH = false
+
+local function isPouchContainer(container)
+  local containerItem = container:getContainerItem()
+  if containerItem then
+    local id = containerItem:getId()
+    for _, pouchId in ipairs(POUCH_ITEM_IDS) do
+      if id == pouchId then
+        return true
+      end
+    end
+  end
+
+  local name = container:getName()
+  if not name then
+    return false
+  end
+
+  name = name:lower()
+  for _, pattern in ipairs(POUCH_NAME_PATTERNS) do
+    if name:find(pattern, 1, true) then
+      return true
+    end
+  end
+
+  return false
+end
+
+-- Fecha as bolsas abertas e devolve quantas foram fechadas.
+function closePouchesBeforeSelling()
+  if not g_game.isOnline() then
+    return 0
+  end
+
+  -- coleta antes de fechar para nao mexer no map enquanto itera
+  local toClose = {}
+  local seen = 0
+  for _, container in pairs(g_game.getContainers() or {}) do
+    if container then
+      seen = seen + 1
+      local match = isPouchContainer(container)
+
+      if DEBUG_POUCH then
+        local containerItem = container:getContainerItem()
+        g_logger.info(string.format(
+          "[pouch] container id=%s name='%s' itemId=%s match=%s",
+          tostring(container:getId()),
+          tostring(container:getName()),
+          tostring(containerItem and containerItem:getId() or "nil"),
+          tostring(match)))
+      end
+
+      if match then
+        table.insert(toClose, container)
+      end
+    end
+  end
+
+  if DEBUG_POUCH then
+    g_logger.info(string.format("[pouch] closePouchesBeforeSelling: %d abertos, %d a fechar", seen, #toClose))
+  end
+
+  for _, container in ipairs(toClose) do
+    g_game.close(container)
+  end
+
+  return #toClose
+end
+
 function saveData()
   if not LoadedPlayer:isLoaded() then return end
 
@@ -955,6 +1038,11 @@ function sellAll(delayed, exceptions)
   end
   exceptions = exceptions or {}
   removeEvent(sellAllWithDelayEvent)
+
+  -- fecha gold pouch / loot pouch antes de disparar a venda. Nas repeticoes do modo
+  -- delayed isso vira no-op, porque as bolsas ja nao aparecem em getContainers().
+  closePouchesBeforeSelling()
+
   local queue = {}
   for _, entry in ipairs(tradeItems[SELL]) do
     local id = entry.ptr:getId()
@@ -1070,6 +1158,9 @@ function SellItemList(items, window)
       })
     end
   end
+
+  -- fecha gold pouch / loot pouch antes de disparar a venda
+  closePouchesBeforeSelling()
 
   g_game.sellAllItems(itemsToSend)
   g_client.setInputLockWidget(nil)

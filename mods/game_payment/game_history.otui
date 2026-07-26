@@ -1,0 +1,85 @@
+MainWindow
+  id: historyWindow
+  size: 590 300
+  !text: tr('Historico de Transacao')
+  @onEscape: modules.game_payment.closeHistory()
+  layout:
+    type: anchor
+
+  FlatPanel
+    id: headerPanel
+    layout:
+      type: horizontalBox
+      spacing: 10
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 30
+    margin: 5
+
+    Label
+      text: Emissao
+      width: 110
+      font: verdana-11px-rounded
+      color: white
+      text-align: center
+
+    Label
+      text: Pontos
+      width: 100
+      font: verdana-11px-rounded
+      color: white
+      text-align: center
+
+    Label
+      text: Valor
+      width: 100
+      font: verdana-11px-rounded
+      color: white
+      text-align: center
+
+    Label
+      text: Metodo
+      width: 100
+      font: verdana-11px-rounded
+      color: white
+      text-align: center
+
+    Label
+      text: Status
+      width: 100
+      font: verdana-11px-rounded
+      color: white
+      text-align: center
+
+  ScrollablePanel
+    id: transactionList
+    layout:
+      type: verticalBox
+      spacing: 5
+    vertical-scrollbar: transactionScrollBar
+    anchors.top: headerPanel.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: closeButton.top
+    margin: 5
+    padding: 5
+
+  VerticalScrollBar
+    id: transactionScrollBar
+    layout:
+      type: anchor
+    anchors.top: transactionList.top
+    anchors.bottom: transactionList.bottom
+    anchors.right: transactionList.right
+    step: 50
+    pixels-scroll: true
+
+  Button
+    id: closeButton
+    size: 100 30
+    !text: tr('FECHAR')
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.bottom: parent.bottom
+    margin-bottom: 10
+    @onClick: modules.game_payment.closeHistory()

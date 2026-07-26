@@ -1,0 +1,54 @@
+BossBarWindow < UIWidget
+  id: bossBarWindow
+  size: 411 140
+  anchors.top: parent.top
+  anchors.horizontalCenter: parent.horizontalCenter
+  margin-top: 4
+  phantom: true
+  focusable: false
+  visible: false
+
+  UIProgressBar
+    id: bossHealth
+    background-color: #c62828
+    image-source: /images/ui/progressbarhpmana
+    anchors.bottom: parent.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    size: 411 22
+    margin-bottom: 23
+    margin-left: 23
+    margin-right: 23
+    phantom: true
+    interactive: false
+
+  UIWidget
+    id: bossFrame
+    anchors.fill: parent
+    image-source: ui/bar_boss
+    image-size: 411 91
+    size: 411 91
+    margin-top: 39
+    phantom: true
+
+  Label
+    id: bossPercent
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.bottom: parent.bottom
+    margin-bottom: 26
+    font: verdana-11px-rounded
+    text-align: center
+    text-auto-resize: true
+    text-offset: 0 14
+    phantom: true
+    text: 100%
+
+  Label
+    id: bossName
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.top: prev.bottom
+    margin-top: 9
+    font: verdana-11px-rounded
+    text-align: center
+    text-auto-resize: true
+    phantom: true

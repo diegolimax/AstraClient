@@ -553,6 +553,18 @@ function SlotValue()
   return slotValue
 end
 
+-- Bits 1 a 8 do bitmask de blessings, na ordem em que aparecem no tooltip.
+local BLESSING_NAMES = {
+  'Twist of Fate',
+  'Wisdom of Solitude',
+  'Spark of the Phoenix',
+  'Fire of the Suns',
+  'Spiritual Shielding',
+  'Embrace of Tibia',
+  'Heart of the Mountain',
+  'Blood of the Mountain'
+}
+
 function onBlessingsChange(player, blessings, oldBlessings)
   local hasAdventurerBlessing = Bit.hasBit(blessings, Blessings.Adventurer)
   if hasAdventurerBlessing ~= Bit.hasBit(oldBlessings, Blessings.Adventurer) then
@@ -560,33 +572,22 @@ function onBlessingsChange(player, blessings, oldBlessings)
   end
 
   local tooltip = 'You are protected by the following blessings:'
-  if Bit.hasBit(blessings, bit.lshift(1, 1)) then
-    tooltip = tooltip .. '\nTwist of Fate'
+  local active = 0
+
+  for index, name in ipairs(BLESSING_NAMES) do
+    if Bit.hasBit(blessings, bit.lshift(1, index)) then
+      tooltip = tooltip .. '\n' .. name
+      active = active + 1
+    end
   end
-  if Bit.hasBit(blessings, bit.lshift(1, 2)) then
-    tooltip = tooltip .. '\nWisdom of Solitude'
-  end
-  if Bit.hasBit(blessings, bit.lshift(1, 3)) then
-    tooltip = tooltip .. '\nSpark of the Phoenix'
-  end
-  if Bit.hasBit(blessings, bit.lshift(1, 4)) then
-    tooltip = tooltip .. '\nFire of the Suns'
-  end
-  if Bit.hasBit(blessings, bit.lshift(1, 5)) then
-    tooltip = tooltip .. '\nSpiritual Shielding'
-  end
-  if Bit.hasBit(blessings, bit.lshift(1, 6)) then
-    tooltip = tooltip .. '\nEmbrace of Tibia'
-  end
-  if Bit.hasBit(blessings, bit.lshift(1, 7)) then
-    tooltip = tooltip .. '\nHeart of the Mountain'
-  end
-  if Bit.hasBit(blessings, bit.lshift(1, 8)) then
-    tooltip = tooltip .. '\nBlood of the Mountain'
-  end
+
   blessedButton = inventoryWindow:recursiveGetChildById('blessedButton')
   blessedButton:setTooltip(tooltip)
-  if blessings > 0 then
+
+  -- cinza = nenhuma bencao, dourado = parcial, verde = as 8 completas
+  if active >= #BLESSING_NAMES then
+    blessedButton:setImageSource('/images/game/blessings/button-blessings-green-idle')
+  elseif active > 0 then
     blessedButton:setImageSource('/images/game/blessings/button-blessings-gold-idle')
   else
     blessedButton:setImageSource('/images/game/blessings/button-blessings-grey-idle')

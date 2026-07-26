@@ -91,8 +91,19 @@ function UIItem:onDragEnter(mousePos)
   if not item:isNotMoveable() then
     local dragClone = g_ui.createWidget("DragItem")
     dragClone:setParent(m_interface.getRootPanel():getParent())
+    -- Forcado aqui e nao so no estilo DragItem (data/styles/10-items.otui): sem
+    -- isso o count herda a fonte padrao do UIWidget, que e fina e sem contorno.
+    dragClone:setFont('Verdana Bold-11px')
+    dragClone:setColor('#ffffff')
     dragClone:setItemId(item:getStoreId() > 0 and item:getStoreId() or item:getId())
     dragClone:setItemSubType(item:getSubType())
+    -- UIItem::setItemSubType nao chama cacheCountText (so setItemCount chama), entao
+    -- sem esta linha o m_countText fica vazio e o clone arrasta sem mostrar a
+    -- quantidade. So para stackaveis: em fluido/splash o count e o subtype e
+    -- sobrescrever trocaria a cor do sprite.
+    if item:isStackable() then
+      dragClone:setItemCount(item:getCount())
+    end
     dragClone:setX(mousePos.x + 12)
     dragClone:setY(mousePos.y + 9)
     self.dragClone = dragClone

@@ -2021,13 +2021,18 @@ function moveStackableItem(item, toPos)
 
   local count = item:getCount()
   local manualSort = modules.game_containers.useManualSort()
+
+  -- Comportamento invertido: arrastar normalmente ja move a pilha inteira, sem
+  -- confirmacao. Segurar CTRL (ou Enter) e que abre a janela de quantidade.
+  local askAmount = g_keyboard.isCtrlPressed() or g_keyboard.isKeyPressed("Enter")
+
   if count == 1 then
     g_game.move(item, toPos, count, manualSort)
     return
   elseif g_keyboard.isShiftPressed() then
     g_game.move(item, toPos, 1, manualSort)
     return
-  elseif g_keyboard.isCtrlPressed() or g_keyboard.isKeyPressed("Enter") then
+  elseif not askAmount then
     g_game.move(item, toPos, count, manualSort)
     return
   end

@@ -4,6 +4,8 @@ DragItem < UIItem
   phantom: true
   &drawRarity: false
   border-color: alpha
+  font: Verdana Bold-11px
+  color: white
 
 Item < UIItem
   size: 34 34

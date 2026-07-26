@@ -34,10 +34,10 @@ StashItemBox < UIButton
       id: amountLabel
       anchors.bottom: parent.bottom
       anchors.right: parent.right
-      margin-right: 1
-      margin-bottom: 1
+      margin-right: 2
+      margin-bottom: -2
       text-auto-resize: true
-      font: cipsoftFont
+      font: verdana-11px-rounded
       color: #ffffff
       phantom: true
       focusable: false

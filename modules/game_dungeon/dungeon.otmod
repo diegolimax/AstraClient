@@ -1,0 +1,9 @@
+Module
+  name: game_dungeon
+  description: Dungeon System (opcode 0x55 / 0x54)
+  author: Diego
+  sandboxed: true
+  autoload: true
+  scripts: [ dungeon ]
+  @onLoad: init()
+  @onUnload: terminate()

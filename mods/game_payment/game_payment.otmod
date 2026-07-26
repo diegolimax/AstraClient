@@ -1,0 +1,9 @@
+Module
+  name: game_payment
+  description: Doacoes via Pix / Mercado Pago / Stripe (!pix e !donate)
+  author: Diego
+  sandboxed: true
+  autoload: true
+  scripts: [ game_payment, game_pix ]
+  @onLoad: init() pixInit()
+  @onUnload: terminate() pixTerminate()

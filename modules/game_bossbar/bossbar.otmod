@@ -1,0 +1,9 @@
+Module
+  name: game_bossbar
+  description: Boss health bar shown over the map while fighting
+  author: Diego
+  sandboxed: true
+  autoload: true
+  scripts: [ bossbar ]
+  @onLoad: init()
+  @onUnload: terminate()

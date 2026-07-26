@@ -1,0 +1,324 @@
+TokenCategoryButton < UIButton
+  height: 34
+  image-source: /images/ui/2pixel_up_frame_borderimage
+  image-border: 2
+  focusable: true
+
+  UIItem
+    id: icon
+    size: 24 24
+    anchors.verticalCenter: parent.verticalCenter
+    anchors.left: parent.left
+    margin-left: 5
+    virtual: true
+    phantom: true
+
+  Label
+    id: title
+    anchors.verticalCenter: parent.verticalCenter
+    anchors.left: icon.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+    font: $var-cip-main-font
+    color: $var-text-cip-color-white
+    text-align: left
+
+TokenOfferSlot < UIWidget
+  size: 92 96
+  image-source: /images/ui/2pixel_up_frame_borderimage
+  image-border: 2
+  focusable: true
+
+  UIItem
+    id: item
+    size: 34 34
+    anchors.top: parent.top
+    anchors.horizontalCenter: parent.horizontalCenter
+    margin-top: 5
+    virtual: true
+    phantom: true
+
+  Label
+    id: caption
+    anchors.top: item.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    margin-left: 3
+    margin-right: 3
+    height: 26
+    text-align: top
+    text-wrap: true
+    font: $var-cip-main-font
+    color: $var-text-cip-color-white
+    phantom: true
+
+  Label
+    id: price
+    anchors.bottom: parent.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-bottom: 4
+    text-align: center
+    font: $var-cip-main-font
+    color: #f0c040
+    phantom: true
+
+NewMainWindow
+  id: tokenShopWindow
+  !text: tr('Tokens Shop')
+  size: 820 640
+  @onEscape: modules.game_tokenshop.hide()
+
+  Panel
+    id: shopHeader
+    height: 36
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 10
+    margin-left: 12
+    margin-right: 12
+    image-source: /images/ui/2pixel_up_frame_borderimage
+    image-border: 2
+
+    Button
+      id: prevShopButton
+      width: 34
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 5
+      !text: '<'
+      @onClick: modules.game_tokenshop.previousShop()
+
+    Button
+      id: nextShopButton
+      width: 34
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-right: 5
+      !text: '>'
+      @onClick: modules.game_tokenshop.nextShop()
+
+    UIItem
+      id: shopCurrencyIcon
+      size: 24 24
+      anchors.verticalCenter: parent.verticalCenter
+      anchors.left: prevShopButton.right
+      margin-left: 10
+      virtual: true
+      phantom: true
+
+    Label
+      id: shopTitle
+      anchors.verticalCenter: parent.verticalCenter
+      anchors.left: shopCurrencyIcon.right
+      anchors.right: shopBalance.left
+      margin-left: 8
+      margin-right: 8
+      font: $var-cip-main-font
+      color: $var-text-cip-color-white
+      text-align: left
+
+    Label
+      id: shopBalance
+      width: 220
+      anchors.verticalCenter: parent.verticalCenter
+      anchors.right: nextShopButton.left
+      margin-right: 10
+      font: $var-cip-main-font
+      color: #f0c040
+      text-align: right
+
+  Panel
+    id: categoryColumn
+    width: 190
+    anchors.top: shopHeader.bottom
+    anchors.left: parent.left
+    anchors.bottom: bottomSep.top
+    margin-top: 8
+    margin-left: 12
+    margin-bottom: 10
+    image-source: /images/ui/2pixel_up_frame_borderimage
+    image-border: 2
+
+    TextList
+      id: categoryList
+      anchors.fill: parent
+      margin: 4
+      vertical-scrollbar: categoryScroll
+      layout:
+        type: verticalBox
+        spacing: 3
+
+    VerticalScrollBar
+      id: categoryScroll
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      step: 24
+      pixels-scroll: true
+
+  Panel
+    id: offerColumn
+    anchors.top: shopHeader.bottom
+    anchors.left: categoryColumn.right
+    anchors.right: parent.right
+    anchors.bottom: detailPanel.top
+    margin-top: 8
+    margin-left: 8
+    margin-right: 12
+    margin-bottom: 8
+    image-source: /images/ui/2pixel_up_frame_borderimage
+    image-border: 2
+
+    ScrollablePanel
+      id: offerPanel
+      anchors.fill: parent
+      padding: 5
+      vertical-scrollbar: offerScroll
+      layout:
+        type: grid
+        cell-size: 92 96
+        cell-spacing: 4
+        flow: true
+
+    VerticalScrollBar
+      id: offerScroll
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      step: 40
+      pixels-scroll: true
+
+  Panel
+    id: detailPanel
+    height: 190
+    anchors.left: categoryColumn.right
+    anchors.right: parent.right
+    anchors.bottom: bottomSep.top
+    margin-left: 8
+    margin-right: 12
+    margin-bottom: 10
+    image-source: /images/ui/2pixel_up_frame_borderimage
+    image-border: 2
+
+    Panel
+      id: detailLeft
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      width: 300
+      margin: 8
+
+      Label
+        id: detailName
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        font: $var-cip-main-font
+        color: $var-text-cip-color-white
+
+      ScrollablePanel
+        id: detailScroll
+        anchors.top: detailName.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        margin-top: 4
+        vertical-scrollbar: detailScrollBar
+        layout:
+          type: verticalBox
+
+        Label
+          id: detailDescription
+          width: 280
+          text-align: topLeft
+          text-wrap: true
+          text-auto-resize: true
+          font: $var-cip-main-font
+          color: $var-text-cip-color
+
+      VerticalScrollBar
+        id: detailScrollBar
+        anchors.top: detailScroll.top
+        anchors.bottom: detailScroll.bottom
+        anchors.right: detailScroll.right
+        step: 14
+        pixels-scroll: true
+
+    Panel
+      id: detailRight
+      anchors.top: parent.top
+      anchors.left: detailLeft.right
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin: 8
+
+      Label
+        id: countLabel
+        width: 70
+        anchors.top: parent.top
+        anchors.right: countBox.left
+        margin-top: 4
+        margin-right: 6
+        !text: tr('Amount')
+        font: $var-cip-main-font
+        color: $var-text-cip-color
+        text-align: right
+
+      SpinBox
+        id: countBox
+        width: 90
+        anchors.top: parent.top
+        anchors.right: parent.right
+        minimum: 1
+        maximum: 1000
+        value: 1
+
+      Button
+        id: buyButton
+        width: 140
+        anchors.top: countBox.bottom
+        anchors.right: parent.right
+        margin-top: 10
+        !text: tr('Buy')
+        enabled: false
+        @onClick: modules.game_tokenshop.onBuyClicked()
+
+      Label
+        id: totalLabel
+        anchors.top: buyButton.bottom
+        anchors.right: parent.right
+        anchors.left: parent.left
+        margin-top: 8
+        font: $var-cip-main-font
+        color: #f0c040
+        text-align: right
+
+  HorizontalSeparator
+    id: bottomSep
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: next.top
+    margin-left: 12
+    margin-right: 12
+    margin-bottom: 10
+
+  Label
+    id: balanceLabel
+    anchors.left: parent.left
+    anchors.bottom: parent.bottom
+    margin-left: 12
+    margin-bottom: 14
+    font: $var-cip-main-font
+    color: $var-text-cip-color
+
+  CloseButton
+    id: closeButton
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-bottom: 12
+    margin-right: 12
+    @onClick: modules.game_tokenshop.hide()

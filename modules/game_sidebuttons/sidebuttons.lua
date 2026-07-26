@@ -12,7 +12,10 @@ local MAIN_BUTTONS_BASE_HEIGHT = 77 -- Corrected base height so it doesn't leave
 -- Hotfix when a new button is introduced
 local forceButtons = {
   { id = "weaponProficiency" },
-  { id = "taskHuntDialog", after = "skillWheelDialog" }
+  { id = "taskHuntDialog", after = "skillWheelDialog" },
+  { id = "dungeonDialog", after = "taskHuntDialog" },
+  { id = "tokenShopDialog", after = "dungeonDialog" },
+  { id = "craftDialog", after = "tokenShopDialog" }
 }
 
 local buttons = {
@@ -21,7 +24,7 @@ local buttons = {
   "analytics", "compendium", "cyclopedia", "bosstiaryDialog", "bossSlots",
   "bosstiaryTracker", "bestiary", "imbueTracker", "exaltationForge",
   "socialDialog", "lenshelpFunction", "highscore", "helperDialog", "weaponProficiency",
-  "manageShortcuts", "taskHuntDialog"
+  "manageShortcuts", "taskHuntDialog", "dungeonDialog", "tokenShopDialog", "craftDialog"
 }
 
 local toggleButtons = {
@@ -368,6 +371,12 @@ function executeButtonFunctionality(button)
     m_settings.toggleShortcuts()
   elseif button:getParent():getId() == "taskHuntDialog" then
     if modules.game_task_hunt then modules.game_task_hunt.toggle() end
+  elseif button:getParent():getId() == "dungeonDialog" then
+    if modules.game_dungeon then modules.game_dungeon.toggle() end
+  elseif button:getParent():getId() == "tokenShopDialog" then
+    if modules.game_tokenshop then modules.game_tokenshop.toggle() end
+  elseif button:getParent():getId() == "craftDialog" then
+    if modules.game_craft then modules.game_craft.toggle() end
   end
 end
 
@@ -431,6 +440,18 @@ function forceCloseButton(button)
   elseif parentId == "taskHuntDialog" then
     if modules.game_task_hunt and modules.game_task_hunt.hide then
       modules.game_task_hunt.hide()
+    end
+  elseif parentId == "dungeonDialog" then
+    if modules.game_dungeon and modules.game_dungeon.hide then
+      modules.game_dungeon.hide()
+    end
+  elseif parentId == "tokenShopDialog" then
+    if modules.game_tokenshop and modules.game_tokenshop.hide then
+      modules.game_tokenshop.hide()
+    end
+  elseif parentId == "craftDialog" then
+    if modules.game_craft and modules.game_craft.hide then
+      modules.game_craft.hide()
     end
   end
 end

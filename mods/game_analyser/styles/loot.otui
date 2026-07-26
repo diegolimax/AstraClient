@@ -6,6 +6,19 @@ LootItem < UIItem
   font: verdana-11px-rounded
   tooltip-delayed: true
 
+  Label
+    id: countLabel
+    anchors.bottom: parent.bottom
+    anchors.right: parent.right
+    margin-right: 2
+    margin-bottom: -2
+    text-auto-resize: true
+    font: verdana-11px-rounded
+    color: #ffffff
+    phantom: true
+    focusable: false
+    visible: false
+
 MiniWindow
   id: lootAnalyserMiniWindow
   &type: 'lootAnalyser'

@@ -1169,6 +1169,29 @@ function updateTierStats(player)
   setSpecial('transcendenceValue', Skill.TranscendenceChance, 'transcendenceValue')
   setSpecial('amplificationValue', Skill.AmplificationChance, 'amplificationValue')
 
+  -- Crit / Leech: o servidor envia em basis points (100 = 1%) via pacote de skills.
+  -- O client armazena em getSkillLevel(id), mas a UI usa widgets proprios.
+  local chanceLevel = player:getSkillLevel(Skill.CriticalChance)
+  local damageLevel = player:getSkillLevel(Skill.CriticalDamage)
+  local lifeLevel   = player:getSkillLevel(Skill.LifeLeechAmount)
+  local manaLevel   = player:getSkillLevel(Skill.ManaLeechAmount)
+
+  local function setLeechCrit(widgetId, rawValue, divisor)
+    local widget = skillsWindow:recursiveGetChildById(widgetId)
+    if not widget then return end
+    local pct = rawValue / (divisor or 100)
+    widget:recursiveGetChildById('value'):setText(string.format("+%.2f%%", pct):gsub("%.00%%", "%%"))
+    widget:setVisible(rawValue > 0)
+  end
+
+  local critSep = skillsWindow:recursiveGetChildById('skillIdHitSeparator')
+  if critSep then critSep:setVisible(chanceLevel > 0 or damageLevel > 0) end
+
+  setLeechCrit('criticalChance', chanceLevel, 100)
+  setLeechCrit('criticalDamage', damageLevel, 100)
+  setLeechCrit('lifeLeech', lifeLevel, 100)
+  setLeechCrit('manaLeech', manaLevel, 100)
+
   scheduleEvent(function()
     skillsWindow:setContentMaximumHeight(math.max(125, getContentPanelHeight() + 6))
   end, 100)

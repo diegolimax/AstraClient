@@ -1,0 +1,9 @@
+Module
+  name: game_craft
+  description: Craft System (opcode 0x59 / 0x58)
+  author: Diego
+  sandboxed: true
+  autoload: true
+  scripts: [ craft ]
+  @onLoad: init()
+  @onUnload: terminate()
